@@ -54,7 +54,7 @@ Quando un giocatore viene eliminato, di giorno o di notte:
 2. colloca la carta scoperta davanti a sé;
 3. rimane visibile a tutti per il resto della partita.
 
-La possibilità per il giocatore eliminato di parlare, gesticolare o partecipare ancora alla partita è **da confermare**. L'unica eccezione già prevista è l'eventuale effetto di eliminazione del Portavoce.
+La possibilità per il giocatore eliminato di parlare, gesticolare o partecipare ancora alla partita è **da confermare**. L'unica eccezione già prevista è l'effetto di eliminazione del Portavoce.
 
 ### Composizione dei ruoli
 
@@ -67,7 +67,11 @@ Prima dell'assegnazione:
 3. i ruoli selezionati vengono aggiunti a Custodi e Sabotatori e poi mescolati;
 4. i posti rimanenti vengono occupati dai Custodi.
 
-I singoli personaggi speciali non hanno un numero minimo di partecipanti. Il **Guastatore** sostituisce uno dei Sabotatori previsti: non aggiunge un ulteriore membro alla loro fazione.
+I singoli personaggi speciali non hanno soglie legate direttamente al numero di partecipanti. La composizione stabilisce invece quanti ruoli di ogni categoria possono essere scelti. L'unica eccezione è il **Guastatore**, disponibile soltanto se la configurazione iniziale comprende almeno due Sabotatori.
+
+Il Guastatore sostituisce uno dei Sabotatori previsti: non aggiunge un ulteriore membro alla loro fazione.
+
+In termini di composizione, se viene scelto il Guastatore, il numero di Sabotatori normali da inserire è pari al totale previsto meno uno.
 
 #### Numero di Sabotatori
 
@@ -81,18 +85,51 @@ Il principio scelto è avere circa **un Sabotatore ogni cinque giocatori**, ma l
 
 La soglia tra 7 e 8 giocatori dovrà essere verificata con particolare attenzione durante i playtest.
 
-#### Numero di personaggi speciali
+#### Categorie dei personaggi speciali
 
-Anche il numero massimo di personaggi speciali è ancora **da confermare**. Una prima ipotesi di test è:
+| Codice | Categoria | Ruoli attuali | Fazione |
+|---|---|---|---|
+| **I** | Indagine | Sentinella, Vedetta, Cartografa della Baia | Custodi |
+| **P** | Protezione | Tecnico | Custodi |
+| **V** | Influenza | Portavoce | Custodi |
+| **N** | Neutrale | Naufrago | Nessuna |
+| **G** | Guasto | Guastatore | Sabotatori |
 
-| Giocatori | Personaggi speciali |
-|---:|---:|
-| 5–6 | 1 |
-| 7–8 | 2 |
-| 9–11 | 3 |
-| 12–15 | 4 |
+Il numero dei giocatori non rende obbligatorio o vietato un ruolo specifico: stabilisce soltanto il numero totale di speciali e i limiti delle categorie. Dopo avere scelto le categorie, il gruppo seleziona liberamente un personaggio disponibile per ciascun posto.
 
-Il Naufrago e il Guastatore occupano ciascuno uno di questi posti. Per ora non è stato deciso se limitare il numero di ruoli investigativi presenti contemporaneamente.
+Ogni personaggio speciale è unico e non può essere inserito due volte. Un limite di categoria superiore al numero dei ruoli oggi disponibili diventerà utile quando verranno aggiunti nuovi personaggi.
+
+I ruoli di Indagine, Protezione e Influenza sostituiscono altrettanti Custodi. Il Naufrago occupa un posto non appartenente ai Sabotatori, ma non entra nella fazione dei Custodi.
+
+#### Composizione standard degli speciali
+
+| Giocatori | Speciali totali | Indagine | Protezione | Influenza | Neutrali | Guasto |
+|---:|---:|---:|---:|---:|---:|---:|
+| 5–6 | 1 | max 1 | max 1 | max 1 | max 1 | 0 |
+| 7 | 2 | max 1 | max 1 | max 1 | max 1 | 0 |
+| 8 | 2 | max 1 | max 1 | max 1 | max 1 | max 1 |
+| 9–11 | 3 | max 1 | max 1 | max 1 | max 1 | max 1 |
+| 12–15 | 4 | max 2 | max 1 | max 1 | max 1 | max 1 |
+
+Si applicano inoltre questi vincoli:
+
+- il totale indicato deve essere raggiunto esattamente, mentre i valori delle categorie sono soltanto limiti massimi;
+- tra 8 e 11 giocatori, Naufrago e Guastatore non possono essere presenti insieme;
+- da 12 giocatori, Naufrago e Guastatore possono convivere;
+- due ruoli di Indagine sono ammessi soltanto da 12 giocatori e soltanto se è presente il Guastatore;
+- da 12 giocatori, almeno due degli speciali scelti devono appartenere ai Custodi;
+- con l'attuale insieme di categorie, da 12 giocatori deve essere presente almeno uno tra Naufrago e Guastatore;
+- il Naufrago e il Guastatore occupano ciascuno uno dei posti disponibili.
+
+La colonna Guasto si applica soltanto se il numero di Sabotatori previsto dalla configurazione è almeno due. Questo vincolo prevale anche se in futuro cambieranno le soglie associate al numero di giocatori.
+
+Il limite base rimane di quattro speciali. Un eventuale quinto personaggio nelle partite più numerose verrà valutato soltanto dopo i playtest.
+
+Esempi:
+
+- con 8 giocatori, `G + I` è valido, mentre `G + N` non lo è;
+- con 10 giocatori, `I + P + N` e `G + I + V` sono validi, mentre `G + N + V` non lo è;
+- con 12 giocatori, `G + I + I + N` è valido, mentre `I + I + P + V` non lo è perché manca il Guastatore.
 
 ### Ruoli
 
@@ -100,13 +137,38 @@ Il Naufrago e il Guastatore occupano ciascuno uno di questi posti. Per ora non �
 |---|---|---|---|
 | **Sabotatore** | Sabotatori | Ogni notte sceglie insieme agli altri Sabotatori un bersaglio da eliminare. | Confermato |
 | **Custode** | Custodi | Non possiede poteri. Discute e vota per individuare i Sabotatori. | Confermato |
-| **Sentinella** | Custodi | Ogni notte controlla l'allineamento di un giocatore. | Da ribilanciare |
+| **Sentinella** | Custodi | Una volta per partita controlla l'allineamento di un altro giocatore vivo. | Confermata |
 | **Tecnico** | Custodi | Una volta per partita, dopo che i Sabotatori hanno scelto definitivamente il bersaglio, può annullare il sabotaggio. Non conosce il bersaglio e gli altri poteri notturni funzionano normalmente. | Confermato |
-| **Portavoce** | Custodi | Quando viene eliminato, pronuncia un ultimo messaggio di massimo dieci parole e designa un giocatore vivo. Nella votazione successiva il voto di quel giocatore vale doppio. | Da confermare o eliminare |
+| **Portavoce** | Custodi | Quando viene eliminato, pronuncia un ultimo messaggio di massimo dieci parole e designa pubblicamente un giocatore vivo. Nella votazione successiva il voto di quel giocatore vale doppio. | Confermato |
 | **Naufrago** | Neutrale | Non ha poteri. Vince se è vivo alla fine, indipendentemente dalla fazione vincitrice. Non conta per nessuna fazione. | Confermato |
-| **Vedetta** | Custodi | Ogni notte osserva un giocatore e scopre se ha compiuto un'azione notturna, ma non quale. | Introdotta, da testare |
-| **Cartografa della Baia** | Custodi | Ogni notte confronta due giocatori vivi, differenti e diversi da sé, e scopre se appartengono alla stessa fazione. Il Naufrago risulta differente da qualsiasi altro giocatore. | Introdotta, da testare |
-| **Guastatore** | Sabotatori | Sostituisce un Sabotatore. Una volta per partita disattiva i poteri notturni attivi dei Custodi per quella notte; i poteri bloccati non vengono consumati. | Introdotto, da testare |
+| **Vedetta** | Custodi | Fino a due volte per partita osserva un giocatore vivo e scopre se ha compiuto un'azione notturna, ma non quale. | Confermata, da testare |
+| **Cartografa della Baia** | Custodi | Fino a due volte per partita confronta due giocatori vivi, differenti e diversi da sé, e scopre se appartengono alla stessa fazione. Il Naufrago risulta differente da qualsiasi altro giocatore. | Confermata, da testare |
+| **Guastatore** | Sabotatori | In una partita con almeno due Sabotatori, ne sostituisce uno. Una volta per partita disattiva i poteri notturni attivi dei Custodi per quella notte; i poteri bloccati non vengono consumati. | Confermato, da testare |
+
+#### Portavoce
+
+Il potere si attiva con qualsiasi eliminazione, di giorno o di notte:
+
+1. il Portavoce rivela la propria carta;
+2. pronuncia un ultimo messaggio di massimo dieci parole;
+3. designa pubblicamente un giocatore ancora vivo;
+4. nella votazione successiva, il voto del giocatore designato vale due.
+
+Il voto doppio si applica alla votazione seguente, mai a quella che ha causato l'eliminazione del Portavoce. Se la partita termina prima, il potere non produce effetti.
+
+La carta viene rivelata, il Portavoce parla e designa il giocatore prima di verificare le condizioni di vittoria.
+
+La gestione del caso in cui il giocatore designato venga eliminato prima della votazione è ancora **da confermare**.
+
+#### Limiti di utilizzo
+
+- Sentinella: una volta per partita.
+- Vedetta: due volte per partita.
+- Cartografa della Baia: due volte per partita.
+- Tecnico: una volta per partita.
+- Guastatore: una volta per partita.
+
+Sentinella, Vedetta e Cartografa vengono interpellate ogni notte e possono decidere di non usare il proprio potere. Un utilizzo viene consumato soltanto quando il personaggio riceve il risultato. Un potere bloccato dall'interferenza del Guastatore non consuma utilizzi.
 
 ### Sequenza della notte
 
@@ -151,15 +213,14 @@ Essere semplicemente svegliati dal narratore non conta come azione. Durante una 
 Prima di aggiornare la logica dell'app devono essere definite:
 
 1. la soglia esatta con cui aumenta il numero dei Sabotatori;
-2. il numero massimo di personaggi speciali per ciascun numero di giocatori;
-3. se limitare a uno Sentinella, Vedetta e Cartografa nella stessa partita;
-4. se mantenere il Portavoce con il nuovo potere oppure eliminarlo;
-5. cosa accade in caso di parità nella votazione;
-6. se la partita inizia con il Giorno o con una prima Notte senza eliminazione;
-7. quali comunicazioni sono consentite ai giocatori eliminati;
-8. come i Sabotatori risolvono un disaccordo sul bersaglio;
-9. quale risultato riceve la Sentinella quando controlla il Naufrago;
-10. cosa accade al potere del Portavoce se il giocatore designato muore prima della votazione successiva.
+2. cosa accade in caso di parità nella votazione;
+3. se la partita inizia con il Giorno o con una prima Notte senza eliminazione;
+4. quali comunicazioni sono consentite ai giocatori eliminati;
+5. come i Sabotatori risolvono un disaccordo sul bersaglio;
+6. quale risultato riceve la Sentinella quando controlla il Naufrago;
+7. cosa accade al potere del Portavoce se il giocatore designato muore prima della votazione successiva;
+8. come ricordare il voto doppio del Portavoce nella versione fisica senza rivelare informazioni aggiuntive;
+9. se il voto del Portavoce resta doppio durante un eventuale ballottaggio della stessa fase.
 
 ### Stato dell'app rispetto al regolamento
 
