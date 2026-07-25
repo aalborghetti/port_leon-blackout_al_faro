@@ -244,9 +244,18 @@ img/sabotatore.svg   img/sentinella.svg   img/portavoce.svg
 img/custode.svg      img/tecnico.svg      img/disturbatore.svg
 ```
 
-Il file del Disturbatore è un elemento della versione precedente. Non sono ancora state create le carte del Naufrago, della Vedetta, della Cartografa della Baia e del Guastatore. Se un'immagine manca, l'app nasconde l'elemento grafico e mostra comunque nome e descrizione del ruolo.
+Il file del Disturbatore è un elemento della versione precedente. Se
+un'immagine manca, l'app nasconde l'elemento grafico e mostra comunque nome e
+descrizione del ruolo.
 
-Il primo studio per il nuovo dorso e le tre varianti stilistiche del Custode è disponibile in [`art/concepts`](art/concepts/README.md). Si tratta di concept separati dall'app, in attesa della scelta della direzione visiva.
+Le esplorazioni del dorso e delle varianti stilistiche del Custode sono
+disponibili in [`art/concepts`](art/concepts/README.md). È stata scelta la
+variante **F — Linea editoriale**.
+
+Il nuovo dorso minimale e le illustrazioni coordinate di tutti i nove ruoli
+sono disponibili nel [`set illustrato minimale`](art/cards/minimal/README.md).
+Restano separati dall'app finché non verranno progettate la gabbia grafica
+della carta e le esportazioni digitali definitive.
 
 ## Narratore attuale
 
@@ -297,6 +306,7 @@ Se i file mancano, l'app funziona comunque: l'effetto viene semplicemente saltat
 ├── styles.css   # tema scuro, layout mobile-friendly
 ├── app.js       # logica: composizione ruoli, assegnazione, narratore TTS/SFX
 ├── img/         # carte-personaggio SVG dei 6 ruoli
+├── art/         # concept e nuovo set illustrato minimale
 └── sfx/         # (opzionale) effetti sonori delle fasi (.mp3 forniti dall'utente)
 ```
 

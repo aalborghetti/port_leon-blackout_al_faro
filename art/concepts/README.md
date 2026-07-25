@@ -10,7 +10,7 @@ Questi file sono concept ad alta risoluzione, non ancora esecutivi di stampa: no
 
 Il dorso utilizza una composizione centrale con faro, tempesta e ornamenti marittimi. La fascia scura esterna mantiene la cornice lontana dall'area di taglio. Prima della stampa definitiva dovrà comunque essere inserito nel tracciato con abbondanza previsto dalla tipografia.
 
-## Custode — varianti di stile
+## Custode — prime varianti di stile
 
 Le tre proposte mantengono lo stesso personaggio, posa, abbigliamento, lanterna, chiavi, ambiente e contrasto tra luce fredda e calda. Cambia soltanto il linguaggio illustrativo.
 
@@ -18,6 +18,19 @@ Le tre proposte mantengono lo stesso personaggio, posa, abbigliamento, lanterna,
 |---|---|---|
 | ![Custode pittorico](custode-style-a-painterly.png) | ![Custode a incisione](custode-style-b-linocut.png) | ![Custode graphic novel](custode-style-c-graphic-novel.png) |
 | Realismo illustrato, materico e immersivo. | Palette limitata e segno da linoleografia, molto riconoscibile in stampa. | Campiture nette, forte contrasto e ottima leggibilità in piccolo. |
+
+## Custode — varianti minimali
+
+Dopo la prima selezione sono state esplorate tre direzioni più essenziali.
+
+| D — Geometrico piatto | E — Silhouette | F — Linea editoriale |
+|---|---|---|
+| ![Custode geometrico](custode-style-d-geometric-flat.png) | ![Custode a silhouette](custode-style-e-silhouette.png) | ![Custode a linea editoriale](custode-style-f-editorial-line.png) |
+| Forme geometriche e campiture nette. | Massima sintesi tramite figura e spazio negativo. | Linea pulita, ampio spazio negativo e oggetti-simbolo. |
+
+La direzione **F — Linea editoriale** è stata scelta come stile ufficiale di
+riferimento. Il dorso coordinato e l'intero gruppo dei personaggi sono
+disponibili nel [`set illustrato minimale`](../cards/minimal/README.md).
 
 ## Elementi comuni da conservare
 
@@ -32,4 +45,6 @@ Le tre proposte mantengono lo stesso personaggio, posa, abbigliamento, lanterna,
 
 ## Prossimo passaggio
 
-Scegliere lo stile **A**, **B** oppure **C**. Dopo la scelta verranno progettati gli altri personaggi con la stessa grammatica visiva e verrà realizzato separatamente il sistema grafico della carta.
+Progettare la gabbia grafica delle carte — nome, fazione, categoria, potere e
+icone — senza modificare le illustrazioni originali. Prima della stampa sarà
+necessario adattare il tutto al tracciato e al profilo colore della tipografia.
