@@ -64,7 +64,7 @@ Le carte etichettate possono essere rigenerate eseguendo
 | Sabotatore | Spegni-fiamma | Eliminazione della luce |
 | Sentinella | Lente | Verifica dell'allineamento |
 | Tecnico | Chiave inglese | Intervento d'emergenza |
-| Portavoce | Cornetta nautica | Ultima dichiarazione pubblica |
+| Portavoce | Biglietto sigillato | Ultimo messaggio e delega del voto |
 | Naufrago | Salvagente | Sopravvivenza |
 | Vedetta | Registro di ronda | Presenza di un'azione notturna |
 | Cartografa della Baia | Carta con due punti | Confronto tra due giocatori |
