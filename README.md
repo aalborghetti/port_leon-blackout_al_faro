@@ -252,8 +252,9 @@ Le esplorazioni del dorso e delle varianti stilistiche del Custode sono
 disponibili in [`art/concepts`](art/concepts/README.md). È stata scelta la
 variante **F — Linea editoriale**.
 
-Il nuovo dorso minimale e le illustrazioni coordinate di tutti i nove ruoli
-sono disponibili nel [`set illustrato minimale`](art/cards/minimal/README.md).
+Il nuovo dorso minimale e le illustrazioni coordinate di tutti i nove ruoli,
+anche nella versione con il nome sotto l'immagine, sono disponibili nel
+[`set illustrato minimale`](art/cards/minimal/README.md).
 Restano separati dall'app finché non verranno progettate la gabbia grafica
 della carta e le esportazioni digitali definitive.
 
