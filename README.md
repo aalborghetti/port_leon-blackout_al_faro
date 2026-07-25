@@ -246,6 +246,8 @@ img/custode.svg      img/tecnico.svg      img/disturbatore.svg
 
 Il file del Disturbatore è un elemento della versione precedente. Non sono ancora state create le carte del Naufrago, della Vedetta, della Cartografa della Baia e del Guastatore. Se un'immagine manca, l'app nasconde l'elemento grafico e mostra comunque nome e descrizione del ruolo.
 
+Il primo studio per il nuovo dorso e le tre varianti stilistiche del Custode è disponibile in [`art/concepts`](art/concepts/README.md). Si tratta di concept separati dall'app, in attesa della scelta della direzione visiva.
+
 ## Narratore attuale
 
 La schermata narratore guida le fasi della partita con audio:
