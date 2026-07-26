@@ -12,6 +12,7 @@
     "dev": "vinext dev",
     "prebuild": "node scripts/prepare-public.mjs",
     "build": "vinext build",
+    "postbuild": "node scripts/finalize-sites-build.mjs",
     "start": "vinext start"
   },
   "dependencies": {
@@ -20,7 +21,9 @@
     "vinext": "1.0.0-beta.4"
   },
   "devDependencies": {
+    "@cloudflare/vite-plugin": "1.47.0",
     "@vitejs/plugin-react": "6.0.3",
-    "vite": "8.0.0"
+    "vite": "8.1.5",
+    "wrangler": "4.114.0"
   }
 }

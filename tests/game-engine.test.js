@@ -2,7 +2,21 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const Engine = require("../game-engine.js");
+
+let Engine = globalThis.BlackoutEngine;
+
+if (!Engine) {
+  const { readFileSync } = require("node:fs");
+  const { join } = require("node:path");
+  const source = readFileSync(join(__dirname, "..", "game-engine.js"), "utf8");
+  const engineModule = { exports: {} };
+
+  Function("module", "exports", source)(
+    engineModule,
+    engineModule.exports
+  );
+  Engine = engineModule.exports;
+}
 
 function player(id, roleId, options = {}) {
   const role = Engine.ROLES[roleId];

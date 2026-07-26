@@ -2,5 +2,6 @@ node_modules/
 public/
 dist/
 .vinext/
+.wrangler/
 .next/
 next-env.d.ts

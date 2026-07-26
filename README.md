@@ -25,8 +25,9 @@ Il server locale è consigliato su mobile per un comportamento più uniforme
 della sintesi vocale. L'app non carica font, audio, analytics o altre risorse da
 servizi esterni.
 
-Per la distribuzione su Sites è presente un sottile wrapper Vinext, che copia il
-client invariato nel pacchetto pubblico:
+Per la distribuzione su Sites è presente un sottile wrapper Vinext con target
+Cloudflare Worker. Copia il client invariato nel pacchetto pubblico e verifica
+che il risultato contenga l'entrypoint richiesto dalla piattaforma:
 
 ```bash
 npm ci
@@ -247,8 +248,8 @@ analytics.
 
 ## Verifica
 
-Il motore è separato dall'interfaccia in `game-engine.js` ed è utilizzabile sia
-nel browser sia da CommonJS.
+Il motore è separato dall'interfaccia in `game-engine.js`: la stessa sorgente
+UMD viene caricata dal browser e dalla suite Node.js.
 
 Con Node.js:
 
@@ -277,10 +278,15 @@ chiave di salvataggio isolata e non tocca eventuali partite reali.
 ├── package.json               # build Vinext per Sites
 ├── package-lock.json          # dipendenze riproducibili
 ├── pages/index.jsx            # ingresso e redirect al client statico
-├── scripts/prepare-public.mjs # prepara solo i file necessari alla demo
+├── vite.config.js             # build Vinext per Cloudflare Worker
+├── wrangler.jsonc             # entrypoint e asset del Worker Sites
+├── scripts/
+│   ├── prepare-public.mjs     # prepara solo i file necessari alla demo
+│   └── finalize-sites-build.mjs # valida Worker, metadati e carte
 ├── .openai/hosting.json       # collegamento alla demo privata
 ├── tests/
 │   ├── game-engine.test.js    # test del motore
+│   ├── package.json           # isola il runner Node in CommonJS
 │   ├── game-engine-browser.html # runner senza Node.js
 │   └── browser-smoke.html     # percorso integrato nel browser
 ├── art/
