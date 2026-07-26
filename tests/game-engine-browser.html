@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Blackout al Faro — Test del motore</title>
+</head>
+<body>
+  <h1>Test del motore di gioco</h1>
+  <output id="test-result">RUNNING</output>
+
+  <script src="../game-engine.js"></script>
+  <script>
+    (function () {
+      "use strict";
+
+      const failures = [];
+      let completed = 0;
+
+      function sameValue(actual, expected) {
+        if (Object.is(actual, expected)) return true;
+        if (
+          !actual ||
+          !expected ||
+          typeof actual !== "object" ||
+          typeof expected !== "object"
+        ) {
+          return false;
+        }
+        const actualKeys = Object.keys(actual).sort();
+        const expectedKeys = Object.keys(expected).sort();
+        return (
+          actualKeys.length === expectedKeys.length &&
+          actualKeys.every(
+            (key, index) =>
+              key === expectedKeys[index] &&
+              sameValue(actual[key], expected[key])
+          )
+        );
+      }
+
+      function test(name, callback) {
+        try {
+          callback();
+          completed += 1;
+        } catch (error) {
+          failures.push(`${name}: ${error.message}`);
+        }
+      }
+
+      const assert = {
+        equal(actual, expected, message = "I valori non coincidono") {
+          if (!Object.is(actual, expected)) {
+            throw new Error(`${message}: ${String(actual)} !== ${String(expected)}`);
+          }
+        },
+        deepEqual(actual, expected, message = "Le strutture non coincidono") {
+          if (!sameValue(actual, expected)) throw new Error(message);
+        },
+        ok(value, message = "La condizione non è vera") {
+          if (!value) throw new Error(message);
+        },
+        throws(callback, validator) {
+          let thrown = null;
+          try {
+            callback();
+          } catch (error) {
+            thrown = error;
+          }
+          if (!thrown) throw new Error("L'eccezione attesa non è stata generata");
+          if (validator && !validator(thrown)) {
+            throw new Error(`Eccezione inattesa: ${thrown.message}`);
+          }
+          return thrown;
+        }
+      };
+
+      window.require = function (moduleId) {
+        if (moduleId === "node:test") return test;
+        if (moduleId === "node:assert/strict") return assert;
+        if (moduleId === "../game-engine.js") return window.BlackoutEngine;
+        throw new Error(`Modulo non supportato nel runner browser: ${moduleId}`);
+      };
+      window.__engineBrowserTests = { failures, get completed() { return completed; } };
+    })();
+  </script>
+  <script src="./game-engine.test.js"></script>
+  <script>
+    (function () {
+      "use strict";
+
+      const tests = window.__engineBrowserTests;
+      const result = document.getElementById("test-result");
+      const status = tests.failures.length
+        ? `FAIL: ${tests.failures.join(" | ")}`
+        : `PASS: ${tests.completed}/30`;
+      result.value = status;
+      result.textContent = status;
+      document.documentElement.dataset.testStatus =
+        tests.failures.length ? "fail" : "pass";
+
+      const port = new URLSearchParams(window.location.search).get("report");
+      if (/^\d{2,5}$/.test(port || "")) {
+        const beacon = new Image();
+        beacon.src =
+          `http://127.0.0.1:${port}/${encodeURIComponent(status)}?t=${Date.now()}`;
+      }
+    })();
+  </script>
+</body>
+</html>

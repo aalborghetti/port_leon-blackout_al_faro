@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <title>Blackout al Faro — Browser smoke test</title>
+</head>
+<body>
+  <select id="audio-mode">
+    <option value="muted">Muto</option>
+    <option value="voice">Voce</option>
+    <option value="voice-ambience">Voce e atmosfera</option>
+  </select>
+  <button id="audio-toggle"></button>
+  <button id="audio-repeat"></button>
+  <main id="app"></main>
+  <div id="privacy-cover" hidden><button type="button">Riprendi</button></div>
+  <div id="public-announcer"></div>
+  <output id="test-result">RUNNING</output>
+
+  <script>
+    (function () {
+      "use strict";
+
+      let activeUtterance = null;
+      const speech = {
+        cancel() {
+          const cancelled = activeUtterance;
+          activeUtterance = null;
+          if (cancelled) {
+            setTimeout(() => cancelled.onerror?.({ error: "canceled" }), 0);
+          }
+        },
+        getVoices() {
+          return [];
+        },
+        speak(utterance) {
+          activeUtterance = utterance;
+          setTimeout(() => {
+            if (activeUtterance !== utterance) return;
+            activeUtterance = null;
+            utterance.onend?.();
+          }, 20);
+        }
+      };
+
+      if (!window.SpeechSynthesisUtterance) {
+        window.SpeechSynthesisUtterance = function (text) {
+          this.text = text;
+        };
+      }
+      Object.defineProperty(window, "speechSynthesis", {
+        configurable: true,
+        value: speech
+      });
+    })();
+  </script>
+  <script src="../game-engine.js"></script>
+  <script src="../app.js"></script>
+  <script>
+    (function () {
+      "use strict";
+
+      const result = document.getElementById("test-result");
+      const app = document.getElementById("app");
+
+      function assert(condition, message) {
+        if (!condition) throw new Error(message);
+      }
+
+      function click(action) {
+        const button = app.querySelector(`[data-action="${action}"]`);
+        assert(button, `Azione non trovata: ${action}`);
+        button.click();
+      }
+
+      function nextFrame() {
+        return new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      }
+
+      function delay(milliseconds) {
+        return new Promise((resolve) => setTimeout(resolve, milliseconds));
+      }
+
+      function report(status) {
+        const port = new URLSearchParams(window.location.search).get("report");
+        if (!/^\d{2,5}$/.test(port || "")) return;
+        const beacon = new Image();
+        beacon.src = `http://127.0.0.1:${port}/${encodeURIComponent(status)}?t=${Date.now()}`;
+      }
+
+      async function run() {
+        localStorage.removeItem("blackout-al-faro:partita:v2");
+        assert(app.textContent.includes("Blackout al Faro"), "Benvenuto assente");
+
+        click("new-game");
+        await nextFrame();
+        assert(app.textContent.includes("Prepara l'equipaggio"), "Setup assente");
+        assert(!app.querySelector('[data-action="start-assignment"]').disabled, "Setup predefinito non valido");
+
+        click("start-assignment");
+        await nextFrame();
+        assert(app.textContent.includes("Tieni premuto"), "Passaggio dispositivo assente");
+
+        for (let index = 0; index < 8; index += 1) {
+          app.querySelector('[data-action="hold-reveal"]').focus();
+          document.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+          await nextFrame();
+          assert(app.textContent.includes("Sei "), `Ruolo ${index + 1} non rivelato`);
+          click("hide-role");
+          await nextFrame();
+        }
+
+        assert(app.textContent.includes("Il faro è pronto"), "Schermata pronta assente");
+        click("start-day");
+        await nextFrame();
+        assert(app.textContent.includes("Giorno 1"), "Giorno 1 assente");
+
+        click("day-elimination");
+        await nextFrame();
+        const dayTarget = app.querySelector('input[name="day-target"]');
+        assert(dayTarget, "Nessun bersaglio diurno");
+        dayTarget.checked = true;
+        click("day-target-review");
+        await nextFrame();
+        click("day-target-confirm");
+        await nextFrame();
+        assert(app.textContent.includes("Ruolo rivelato"), "Rivelazione eliminato assente");
+
+        click("elimination-continue");
+        await nextFrame();
+        assert(app.textContent.includes("La luce si spegne"), "Notte non iniziata");
+
+        for (let guard = 0; guard < 20 && !app.textContent.includes("Alba del Giorno"); guard += 1) {
+          if (app.querySelector('[data-action="night-next"]')) {
+            click("night-next");
+          } else if (app.querySelector('[data-action="sab-target-review"]')) {
+            const target = app.querySelector('input[name="night-sabotage-target"]');
+            assert(target, "Nessun bersaglio notturno");
+            target.checked = true;
+            click("sab-target-review");
+          } else if (app.querySelector('[data-action="sab-target-confirm"]')) {
+            click("sab-target-confirm");
+          } else if (app.querySelector('[data-action="binary-power"]')) {
+            const skip = app.querySelector('[data-action="binary-power"][data-use="false"]');
+            assert(skip, "Scelta salta potere assente");
+            skip.click();
+          } else if (app.querySelector('[data-action="investigator-skip"]')) {
+            click("investigator-skip");
+          } else if (app.querySelector('[data-action="resolve-night"]')) {
+            click("resolve-night");
+          } else if (app.querySelector(".handoff-timer")) {
+            await delay(3000);
+          } else {
+            throw new Error(`Flusso notturno bloccato: ${app.textContent.slice(0, 120)}`);
+          }
+          await nextFrame();
+        }
+
+        assert(app.textContent.includes("Alba del Giorno 2"), "Alba non raggiunta");
+        click("dawn-continue");
+        await nextFrame();
+        assert(app.textContent.includes("Giorno 2"), "Giorno 2 non raggiunto");
+
+        localStorage.removeItem("blackout-al-faro:partita:v2");
+        result.value = "PASS";
+        result.textContent = "PASS";
+        document.documentElement.dataset.testStatus = "pass";
+        report("PASS");
+      }
+
+      setTimeout(() => {
+        run().catch((error) => {
+          result.value = `FAIL: ${error.message}`;
+          result.textContent = `FAIL: ${error.message}`;
+          document.documentElement.dataset.testStatus = "fail";
+          report(`FAIL: ${error.message}`);
+        });
+      }, 40);
+    })();
+  </script>
+</body>
+</html>

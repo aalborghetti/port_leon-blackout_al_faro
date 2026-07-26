@@ -1,137 +1,103 @@
 <!doctype html>
 <html lang="it">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Blackout al Faro — Assegnazione Ruoli</title>
-  <link rel="stylesheet" href="styles.css" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#F8E8D6">
+  <meta name="color-scheme" content="light dark">
+  <meta
+    name="description"
+    content="Blackout al Faro: esperienza digitale completa per giocare insieme su un solo dispositivo."
+  >
+  <title>Blackout al Faro</title>
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <div class="app">
-    <!-- SETUP -->
-    <div class="card" id="screen-setup">
-      <h1>Blackout al Faro — Assegnazione ruoli</h1>
-      <p class="lead">Seleziona il numero di giocatori, genera i ruoli e passa il dispositivo: ognuno vede solo il proprio ruolo.</p>
-
-      <div class="divider"></div>
-
-      <div class="row setup-top">
-        <div class="field">
-          <label for="players">Giocatori (5–15)</label>
-          <select id="players"></select>
-        </div>
-
-        <div class="toggle" title="Aggiunge un ruolo neutrale per più caos (13–15 giocatori).">
-          <input type="checkbox" id="chaos" />
-          <label for="chaos">Modalità Caos (Disturbatore)</label>
-        </div>
+  <div class="app-shell">
+    <header class="app-topbar">
+      <div class="brand" aria-label="Blackout al Faro">
+        <span class="brand__mark" aria-hidden="true">
+          <span class="brand__beam"></span>
+          <span class="brand__tower"></span>
+        </span>
+        <span class="brand__text">
+          <span class="brand__eyebrow">Port Leon</span>
+          <span class="brand__title">Blackout al Faro</span>
+        </span>
       </div>
 
-      <div class="divider"></div>
-
-      <div class="row">
-        <button class="primary" id="btn-generate">Genera ruoli</button>
-        <button class="ghost" id="btn-about">Regole ruoli (preview)</button>
+      <div class="audio-toolbar" role="group" aria-label="Controlli audio">
+        <label class="sr-only" for="audio-mode">Modalità audio</label>
+        <select id="audio-mode" class="audio-toolbar__mode" data-audio-mode>
+          <option value="muted">Muto</option>
+          <option value="voice">Voce</option>
+          <option value="voice-ambience">Voce e atmosfera</option>
+        </select>
+        <button
+          id="audio-toggle"
+          class="icon-button"
+          type="button"
+          data-action="toggle-audio"
+          aria-label="Attiva o disattiva l'audio"
+          aria-pressed="false"
+          title="Attiva o disattiva l'audio"
+        >
+          <span aria-hidden="true">♪</span>
+        </button>
+        <button
+          id="audio-repeat"
+          class="icon-button"
+          type="button"
+          data-action="repeat-narration"
+          aria-label="Ripeti l'ultima frase"
+          title="Ripeti l'ultima frase"
+        >
+          <span aria-hidden="true">↻</span>
+        </button>
       </div>
+    </header>
 
-      <div id="preview" style="display:none; margin-top:12px;">
-        <h2>Composizione (in base ai giocatori)</h2>
-        <div class="small" id="preview-text"></div>
+    <main id="app" class="app-main" tabindex="-1">
+      <div class="app-loading" role="status">
+        <span class="app-loading__light" aria-hidden="true"></span>
+        <span>Preparazione della baia…</span>
       </div>
-    </div>
+    </main>
+  </div>
 
-    <!-- ASSEGNAZIONE -->
-    <div class="card" id="screen-assign" style="display:none;">
-      <h1 id="assign-title">Giocatore 1</h1>
-      <div id="assign-area"></div>
-
-      <div class="footerRow">
-        <button class="ghost" id="btn-restart">Reset</button>
-        <button class="primary" id="btn-next" disabled>Giocatore successivo</button>
-      </div>
-
-      <p class="small" style="margin-top:10px;">
-        Suggerimento: abilita “Giocatore successivo” solo dopo aver visto il ruolo.
-      </p>
-    </div>
-
-    <!-- FINE -->
-    <div class="card" id="screen-done" style="display:none;">
-      <h1>Ruoli assegnati</h1>
-      <p>Ora potete iniziare la partita (a voce) usando i ruoli assegnati.</p>
-
-      <div class="divider"></div>
-
-      <div class="actions">
-        <button class="primary block" id="btn-start-game">▶ Avvia narratore</button>
-        <div class="row">
-          <button class="secondary" id="btn-new">Nuova assegnazione</button>
-          <button class="ghost" id="btn-back">Torna al setup</button>
-        </div>
-      </div>
-
-      <div class="divider"></div>
-
-      <h2>Riepilogo (solo per l’host)</h2>
-      <p class="small">Se non vuoi che nessuno veda il riepilogo, non aprire questa sezione in pubblico.</p>
-      <div id="summary" class="small mono" style="white-space:pre-wrap;"></div>
-    </div>
-
-    <!-- NARRATORE -->
-    <div class="card" id="screen-game" style="display:none;">
-      <h1>Narratore</h1>
-      <p class="small">Usa i pulsanti per scandire le fasi. L’audio parte dopo “Abilita audio”.</p>
-
-      <div class="row" style="margin-top:8px;">
-        <button class="primary" id="btn-audio-enable">🔊 Abilita audio</button>
-
-        <label class="toggle inline">
-          <input type="checkbox" id="tts-enabled" checked />
-          <span>Voce (TTS)</span>
-        </label>
-
-        <label class="toggle inline">
-          <input type="checkbox" id="sfx-enabled" />
-          <span>Effetti (SFX)</span>
-        </label>
-
-        <label class="toggle inline" title="Sottofondo di temporale generato dal vivo: più intenso di notte, più calmo di giorno.">
-          <input type="checkbox" id="storm-enabled" checked />
-          <span>🌩️ Temporale</span>
-        </label>
-      </div>
-
-      <div class="divider"></div>
-
-      <h2>Fase attuale</h2>
-      <div class="cover noClick" id="phase-box" style="height:auto;">
-        <div>
-          <div class="big" id="phase-title">—</div>
-          <div class="hint" id="phase-sub">Premi “Inizia”</div>
-        </div>
-      </div>
-
-      <div class="divider"></div>
-
-      <div class="row">
-        <button class="primary" id="btn-phase-start">Inizia</button>
-        <button id="btn-phase-next">Fase successiva</button>
-        <button class="ghost" id="btn-phase-repeat">Ripeti audio</button>
-      </div>
-
-      <div class="divider"></div>
-
-      <button class="ghost" id="btn-exit-game">Esci (torna al riepilogo)</button>
-
-      <!-- SFX opzionali: metti i file in ./sfx/ -->
-      <audio id="sfx-night" preload="auto" src="sfx/night.mp3"></audio>
-      <audio id="sfx-day" preload="auto" src="sfx/day.mp3"></audio>
-      <audio id="sfx-vote" preload="auto" src="sfx/vote.mp3"></audio>
+  <div
+    id="privacy-cover"
+    class="privacy-cover"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="privacy-title"
+    hidden
+  >
+    <div class="privacy-cover__content">
+      <span class="privacy-cover__icon" aria-hidden="true">◉</span>
+      <p class="eyebrow">Schermata protetta</p>
+      <h2 id="privacy-title">Il mare nasconde i suoi segreti</h2>
+      <p>Passa il dispositivo alla persona chiamata prima di continuare.</p>
+      <button class="button button--primary button--wide" type="button" data-action="resume-private-screen">
+        Sono pronto
+      </button>
     </div>
   </div>
 
-  <div class="flash" id="flash"></div>
+  <div
+    id="public-announcer"
+    class="sr-only"
+    aria-live="polite"
+    aria-atomic="true"
+  ></div>
 
+  <noscript>
+    <div class="noscript">
+      Blackout al Faro richiede JavaScript per distribuire i ruoli e guidare la partita.
+    </div>
+  </noscript>
+
+  <script src="game-engine.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
