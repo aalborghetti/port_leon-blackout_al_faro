@@ -4,6 +4,8 @@ Gioco di deduzione sociale ambientato a Port Leon durante un blackout. Un solo
 dispositivo distribuisce i ruoli, guida la notte, raccoglie le scelte private,
 risolve i poteri, rivela gli eliminati e controlla la vittoria.
 
+[Gioca online con GitHub Pages](https://aalborghetti.github.io/port_leon-blackout_al_faro/)
+
 L'app implementa la **modalità digitale completa**. Per ora non è presente una
 modalità di supporto alle sole carte fisiche.
 
@@ -25,17 +27,16 @@ Il server locale è consigliato su mobile per un comportamento più uniforme
 della sintesi vocale. L'app non carica font, audio, analytics o altre risorse da
 servizi esterni.
 
-Per la distribuzione su Sites è presente un sottile wrapper Vinext con target
-Cloudflare Worker. Copia il client invariato nel pacchetto pubblico e verifica
-che il risultato contenga l'entrypoint richiesto dalla piattaforma:
+La versione online viene distribuita automaticamente tramite GitHub Pages.
+Ogni push sul ramo `main` esegue i test, prepara un artefatto contenente soltanto
+il client statico e lo pubblica:
 
 ```bash
-npm ci
-npm run build
-npm start
+npm test
+npm run prepare:pages
 ```
 
-La build richiede Node.js 22 o successivo.
+I comandi locali richiedono Node.js 22 o successivo e non installano dipendenze.
 
 ## Cosa gestisce l'app
 
@@ -275,15 +276,9 @@ chiave di salvataggio isolata e non tocca eventuali partite reali.
 ├── styles.css                 # interfaccia mobile-first
 ├── game-engine.js             # regole pure e macchina di risoluzione
 ├── app.js                     # stato, schermate, privacy, voce e atmosfera
-├── package.json               # build Vinext per Sites
-├── package-lock.json          # dipendenze riproducibili
-├── pages/index.jsx            # ingresso e redirect al client statico
-├── vite.config.js             # build Vinext per Cloudflare Worker
-├── wrangler.jsonc             # entrypoint e asset del Worker Sites
-├── scripts/
-│   ├── prepare-public.mjs     # prepara solo i file necessari alla demo
-│   └── finalize-sites-build.mjs # valida Worker, metadati e carte
-├── .openai/hosting.json       # collegamento alla demo privata
+├── package.json               # test e preparazione dell'artefatto statico
+├── .github/workflows/pages.yml # pubblicazione automatica GitHub Pages
+├── scripts/prepare-public.mjs # prepara solo i file necessari alla demo
 ├── tests/
 │   ├── game-engine.test.js    # test del motore
 │   ├── package.json           # isola il runner Node in CommonJS

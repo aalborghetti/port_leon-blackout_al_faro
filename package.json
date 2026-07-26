@@ -7,23 +7,7 @@
     "node": ">=22"
   },
   "scripts": {
-    "prepare:public": "node scripts/prepare-public.mjs",
-    "predev": "node scripts/prepare-public.mjs",
-    "dev": "vinext dev",
-    "prebuild": "node scripts/prepare-public.mjs",
-    "build": "vinext build",
-    "postbuild": "node scripts/finalize-sites-build.mjs",
-    "start": "vinext start"
-  },
-  "dependencies": {
-    "react": "19.2.6",
-    "react-dom": "19.2.6",
-    "vinext": "1.0.0-beta.4"
-  },
-  "devDependencies": {
-    "@cloudflare/vite-plugin": "1.47.0",
-    "@vitejs/plugin-react": "6.0.3",
-    "vite": "8.1.5",
-    "wrangler": "4.114.0"
+    "test": "node --test tests/game-engine.test.js",
+    "prepare:pages": "node scripts/prepare-public.mjs"
   }
 }
