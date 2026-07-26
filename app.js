@@ -1088,7 +1088,8 @@
       actions: `
         <button class="button button--ghost" data-action="day-target-cancel">Torna al confronto</button>
         <button class="button button--primary" data-action="day-target-review">Continua</button>
-      `
+      `,
+      inlineActions: true
     });
   }
 
@@ -1168,7 +1169,8 @@
       title: "Scegliete un solo bersaglio",
       intro: "Non state votando separatamente: concordate prima, poi toccate lo stesso nome.",
       body: targetFieldset(targets, "night-sabotage-target"),
-      actions: `<button class="button button--light button--block" data-action="sab-target-review">Rivedi il bersaglio</button>`
+      actions: `<button class="button button--light button--block" data-action="sab-target-review">Rivedi il bersaglio</button>`,
+      inlineActions: true
     });
   }
 
@@ -1332,11 +1334,20 @@
       actions: `
         <button class="button button--ghost button--night" data-action="investigator-skip" data-role="${roleId}">Non usare</button>
         <button class="button button--light" data-action="investigator-submit" data-role="${roleId}">Usa il potere</button>
-      `
+      `,
+      inlineActions: true
     });
   }
 
-  function secretShell({ roleId, audience, title, intro, body, actions }) {
+  function secretShell({
+    roleId,
+    audience,
+    title,
+    intro,
+    body,
+    actions,
+    inlineActions = false
+  }) {
     return shell({
       eyebrow: `Notte ${state.day} · ${roleMeta(roleId).name}`,
       title,
@@ -1345,7 +1356,8 @@
         <div class="secret-banner secret-banner--night">${escapeHtml(audience || `Solo ${roleMeta(roleId).name} deve avere gli occhi aperti`)}</div>
         ${body}
       `,
-      actions
+      actions,
+      inlineActions
     });
   }
 
@@ -1443,7 +1455,8 @@
       `,
       actions: targets.length
         ? `<button class="button button--primary button--block" data-action="portavoce-designate">Conferma il voto doppio</button>`
-        : `<button class="button button--primary button--block" data-action="portavoce-skip">Continua</button>`
+        : `<button class="button button--primary button--block" data-action="portavoce-skip">Continua</button>`,
+      inlineActions: true
     });
   }
 
@@ -1843,6 +1856,7 @@
       state.day = 1;
       lastNarrationKey = "";
       saveAndRender();
+      scrollToScreenStart();
       return;
     }
     if (action === "audio-repeat") {
@@ -1854,12 +1868,14 @@
       state.screen = "day-elimination";
       state.uiDayTarget = null;
       saveAndRender();
+      scrollToScreenStart();
       return;
     }
     if (action === "day-target-cancel") {
       state.screen = "day";
       state.uiDayTarget = null;
       saveAndRender();
+      scrollToScreenStart();
       return;
     }
     if (action === "day-target-review") {
@@ -1867,11 +1883,13 @@
       if (!id) return showInlineError("Scegli il giocatore eliminato.");
       state.uiDayTarget = id;
       render();
+      scrollToScreenStart();
       return;
     }
     if (action === "day-target-back") {
       state.uiDayTarget = null;
       render();
+      scrollToScreenStart();
       return;
     }
     if (action === "day-target-confirm") {

@@ -57,11 +57,55 @@
     (function () {
       const app = document.getElementById("app");
       const result = document.getElementById("test-result");
-      const shouldHold = new URLSearchParams(location.search).has("hold");
+      const parameters = new URLSearchParams(location.search);
+      const shouldHold = parameters.has("hold");
+      const shouldTestElimination = parameters.has("day-elimination");
 
       function report(text) {
         result.value = text;
         result.textContent = text;
+      }
+
+      function delay(milliseconds) {
+        return new Promise((resolve) => setTimeout(resolve, milliseconds));
+      }
+
+      async function testDayElimination() {
+        for (let index = 0; index < 8; index += 1) {
+          const reveal = app.querySelector('[data-action="hold-reveal"]');
+          if (!reveal) throw new Error(`reveal ${index + 1}`);
+          reveal.focus();
+          document.dispatchEvent(new KeyboardEvent("keydown", {
+            key: "Enter",
+            bubbles: true
+          }));
+          await delay(10);
+          if (!app.textContent.includes("Sei ")) throw new Error(`role ${index + 1}`);
+          app.querySelector('[data-action="hide-role"]')?.click();
+          await delay(10);
+        }
+
+        app.querySelector('[data-action="start-day"]')?.click();
+        await delay(30);
+        app.querySelector('[data-action="day-elimination"]')?.click();
+        await delay(30);
+
+        const targets = Array.from(app.querySelectorAll(".target-option"));
+        if (targets.length !== 8) throw new Error(`targets ${targets.length}`);
+        window.scrollTo(0, document.documentElement.scrollHeight);
+        await delay(50);
+
+        const lastBounds = targets.at(-1).getBoundingClientRect();
+        const actionBounds = app.querySelector(".action-bar").getBoundingClientRect();
+        const lastCenter = document.elementFromPoint(
+          lastBounds.left + lastBounds.width / 2,
+          lastBounds.top + lastBounds.height / 2
+        );
+        const visible =
+          lastBounds.top >= 0 &&
+          lastBounds.bottom <= actionBounds.top &&
+          targets.at(-1).contains(lastCenter);
+        report(visible ? "PASS: last player" : "FAIL: last player");
       }
 
       window.addEventListener("error", (event) => report(`FAIL: ${event.message}`));
@@ -98,6 +142,10 @@
           return;
         }
         report("READY");
+        if (shouldTestElimination) {
+          testDayElimination().catch((error) => report(`FAIL: ${error.message}`));
+          return;
+        }
         if (!shouldHold) return;
         reveal.setPointerCapture = function () {};
         reveal.querySelector("img").dispatchEvent(new PointerEvent("pointerdown", {
