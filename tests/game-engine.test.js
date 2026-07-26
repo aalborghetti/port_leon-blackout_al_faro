@@ -381,6 +381,13 @@ test("gli helper del Portavoce applicano limite parole e perdita del bonus", () 
   );
 
   const bonus = Engine.createPortavoceBonus("p1", "c1");
+  const firstNightBonus = Engine.createPortavoceBonus({
+    sourcePlayerId: "p1",
+    designatedPlayerId: "c1",
+    createdOnDay: 0,
+    createdAfterPhase: "night",
+  });
+  assert.equal(firstNightBonus.createdOnDay, 0);
   const alivePlayers = [
     player("p1", "portavoce", { alive: false }),
     player("c1", "custode"),

@@ -8,10 +8,23 @@
   }
 
   const STORAGE_KEY =
-    window.__BLACKOUT_STORAGE_KEY__ || "blackout-al-faro:partita:v2";
-  const STATE_VERSION = 2;
+    window.__BLACKOUT_STORAGE_KEY__ || "blackout-al-faro:partita:v3";
+  const STATE_VERSION = 3;
+  const TEST_TIMINGS = window.__BLACKOUT_TEST_TIMINGS__ || {};
   const HOLD_DURATION = 720;
-  const HANDOFF_DURATION = 2800;
+  const HANDOFF_DURATION = Number.isFinite(TEST_TIMINGS.handoff)
+    ? TEST_TIMINGS.handoff
+    : 2800;
+  const NIGHT_TRANSITION_DURATION = Number.isFinite(TEST_TIMINGS.nightTransition)
+    ? TEST_TIMINGS.nightTransition
+    : 5000;
+  const AUTOMATIC_NIGHT_STEPS = new Set([
+    "close",
+    "guastatore-handoff",
+    "role-sleep",
+    "saboteurs-sleep",
+    "resolve"
+  ]);
 
   const ROLE_COPY = {
     custode: {
@@ -367,7 +380,7 @@
       players: [],
       assignmentIndex: 0,
       assignmentRevealed: false,
-      day: 1,
+      day: 0,
       phase: "setup",
       doubleVote: null,
       night: null,
@@ -414,6 +427,9 @@
 
   function readSavedGame() {
     try {
+      if (!window.__BLACKOUT_STORAGE_KEY__) {
+        localStorage.removeItem("blackout-al-faro:partita:v2");
+      }
       const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY));
       const hydrated = hydrateSavedGame(parsed);
       if (hydrated) return hydrated;
@@ -505,7 +521,7 @@
         ...player,
         faction: Engine.ROLES[player.roleId].faction
       })),
-      day: Number.isInteger(parsed.day) && parsed.day > 0 ? parsed.day : 1,
+      day: Number.isInteger(parsed.day) && parsed.day >= 0 ? parsed.day : 0,
       assignmentRevealed: false,
       audioWasForced: parsed.audioWasForced === true
     };
@@ -704,8 +720,6 @@
         html = renderReady();
         break;
       case "day":
-        html = renderDay();
-        break;
       case "day-elimination":
         html = renderDayElimination();
         break;
@@ -976,7 +990,7 @@
     return shell({
       eyebrow: "Assegnazione completata",
       title: "Il faro è pronto",
-      intro: "Posate il dispositivo al centro. La partita inizierà di giorno.",
+      intro: "Posate il dispositivo al centro. La partita inizierà con la Notte 1.",
       body: `
         <div class="lighthouse-divider" aria-hidden="true"><span></span></div>
         <div class="panel">
@@ -991,58 +1005,9 @@
       `,
       actions: `
         <button class="button button--ghost" data-action="abort-assignment">Ricomincia</button>
-        <button class="button button--primary" data-action="start-day">Attiva audio e inizia il Giorno 1</button>
+        <button class="button button--primary" data-action="start-night">Attiva audio e inizia la Notte 1</button>
       `
     });
-  }
-
-  function renderDay() {
-    const alive = alivePlayers();
-    const dead = state.players.filter((player) => !player.alive);
-    const bonus = activeDoubleVote();
-    return shell({
-      eyebrow: `Giorno ${state.day}`,
-      title: "Confrontatevi nella luce",
-      intro: "L'app non raccoglie i voti: discutete e risolvete la scelta insieme.",
-      body: `
-        ${bonus ? `
-          <div class="alert alert--accent">
-            <strong>Voto doppio attivo</strong>
-            Il voto di ${escapeHtml(playerById(bonus.designatedPlayerId)?.name || "—")} vale due in questa votazione.
-          </div>
-        ` : ""}
-        <section class="section-block">
-          <div class="section-heading"><h2>Ancora nel faro</h2><span class="counter">${alive.length}</span></div>
-          <div class="player-list">
-            ${alive.map((player) => playerRow(player)).join("")}
-          </div>
-        </section>
-        ${dead.length ? `
-          <section class="section-block">
-            <div class="section-heading"><h2>Ruoli rivelati</h2><span class="counter">${dead.length}</span></div>
-            <div class="player-list player-list--dead">
-              ${dead.map((player) => playerRow(player, true)).join("")}
-            </div>
-          </section>
-        ` : ""}
-        <div class="alert alert--info">Ogni giornata deve concludersi con un solo eliminato. In caso di parità continuate il confronto finché il gruppo non indica un unico nome.</div>
-      `,
-      actions: `
-        <button class="button button--ghost" data-action="audio-repeat">Ripeti istruzione</button>
-        <button class="button button--primary" data-action="day-elimination">Registra l'eliminato</button>
-      `
-    });
-  }
-
-  function playerRow(player, revealRole = false) {
-    const meta = roleMeta(player.roleId);
-    return `
-      <div class="player-row ${player.alive ? "" : "is-dead"}">
-        <span class="player-token">${escapeHtml(initials(player.name))}</span>
-        <span class="player-row__name">${escapeHtml(player.name)}</span>
-        ${revealRole ? `<span class="pill">${escapeHtml(meta.name)}</span>` : `<span class="status-dot">Vivo</span>`}
-      </div>
-    `;
   }
 
   function initials(name) {
@@ -1052,27 +1017,31 @@
   function renderDayElimination() {
     const confirmingId = state.uiDayTarget || null;
     const confirming = playerById(confirmingId);
+    const bonus = activeDoubleVote();
     if (confirming) {
       return shell({
         eyebrow: `Giorno ${state.day} · Esito del voto`,
         title: `Eliminare ${confirming.name}?`,
-        intro: "Questa scelta rivelerà il ruolo. Controllate che il nome concordato sia corretto.",
+        intro: "Il gruppo ha indicato questo nome. Conferma per rivelarne il ruolo.",
         body: `
           <div class="confirmation-mark" aria-hidden="true">?</div>
           <div class="alert alert--warning">Una volta confermato, ${escapeHtml(confirming.name)} sarà considerato eliminato.</div>
         `,
-        actions: `
-          <button class="button button--ghost" data-action="day-target-back">Cambia nome</button>
-          <button class="button button--danger" data-action="day-target-confirm" data-player-id="${escapeHtml(confirming.id)}">Conferma eliminazione</button>
-        `
+        actions: `<button class="button button--danger button--block" data-action="day-target-confirm" data-player-id="${escapeHtml(confirming.id)}">Conferma eliminazione</button>`
       });
     }
 
     return shell({
-      eyebrow: `Giorno ${state.day} · Esito del voto`,
+      eyebrow: `Giorno ${state.day}`,
       title: "Chi è stato eliminato?",
-      intro: "Indica soltanto il risultato finale della votazione svolta fuori dall'app.",
+      intro: "Discutete e votate fuori dall'app. Quando avete concordato un unico nome, selezionatelo.",
       body: `
+        ${bonus ? `
+          <div class="alert alert--accent">
+            <strong>Voto doppio attivo.</strong>
+            Il voto di ${escapeHtml(playerById(bonus.designatedPlayerId)?.name || "—")} vale due in questa votazione.
+          </div>
+        ` : ""}
         <fieldset class="target-list">
           <legend class="sr-only">Scegli il giocatore eliminato</legend>
           ${alivePlayers().map((player) => `
@@ -1085,10 +1054,7 @@
           `).join("")}
         </fieldset>
       `,
-      actions: `
-        <button class="button button--ghost" data-action="day-target-cancel">Torna al confronto</button>
-        <button class="button button--primary" data-action="day-target-review">Continua</button>
-      `,
+      actions: `<button class="button button--primary button--block" data-action="day-target-review">Continua</button>`,
       inlineActions: true
     });
   }
@@ -1130,17 +1096,17 @@
 
   function renderNightClose() {
     return shell({
-      eyebrow: `Notte ${state.day}`,
+      eyebrow: `Notte ${nightNumber()}`,
       title: "La luce si spegne",
       intro: "Posate il dispositivo al centro. Tutti chiudano gli occhi e restino in silenzio.",
       body: `
         <div class="night-symbol" aria-hidden="true"><span></span></div>
         <div class="alert alert--night">Solo il ruolo chiamato dalla voce può aprire gli occhi e toccare lo schermo.</div>
+        <div class="handoff-timer" aria-label="Attesa automatica di cinque secondi">
+          <span aria-hidden="true"></span>
+          <strong>La prima chiamata inizierà automaticamente tra 5 secondi</strong>
+        </div>
         ${state.audioWasForced ? `<div class="alert alert--warning">La voce è stata attivata automaticamente: senza una chiamata udibile la regia notturna non può funzionare.</div>` : ""}
-      `,
-      actions: `
-        <button class="button button--ghost button--night" data-action="audio-repeat">Ripeti</button>
-        <button class="button button--light" data-action="night-next">Tutti hanno chiuso gli occhi</button>
       `
     });
   }
@@ -1176,7 +1142,7 @@
 
   function renderGuastatoreHandoff() {
     return shell({
-      eyebrow: `Notte ${state.day}`,
+      eyebrow: `Notte ${nightNumber()}`,
       title: "Solo il Guastatore resta sveglio",
       intro: "Gli altri Sabotatori chiudano gli occhi e allontanino le mani. La sua scelta deve restare segreta anche alla squadra.",
       body: `
@@ -1223,7 +1189,7 @@
     );
     const audience = guastatoreActed ? "Guastatore" : "Sabotatori";
     return shell({
-      eyebrow: `Notte ${state.day}`,
+      eyebrow: `Notte ${nightNumber()}`,
       title: `${audience}, ${guastatoreActed ? "chiudi" : "chiudete"} gli occhi`,
       intro: "Il bersaglio è definitivo. La regia continuerà automaticamente tra pochi istanti.",
       body: `
@@ -1239,7 +1205,7 @@
   function renderRoleSleep(roleId) {
     const name = roleMeta(roleId).name;
     return shell({
-      eyebrow: `Notte ${state.day}`,
+      eyebrow: `Notte ${nightNumber()}`,
       title: `${name}, chiudi gli occhi`,
       intro: "Allontana la mano dal dispositivo. La regia chiamerà automaticamente il prossimo ruolo tra pochi istanti.",
       body: `
@@ -1257,7 +1223,7 @@
     if (
       handoffTimer ||
       state.screen !== "night" ||
-      !["guastatore-handoff", "role-sleep", "saboteurs-sleep"].includes(stepType) ||
+      !AUTOMATIC_NIGHT_STEPS.has(stepType) ||
       document.hidden
     ) {
       return;
@@ -1265,7 +1231,12 @@
     const expectedDay = state.day;
     const expectedIndex = state.night.stepIndex;
     const expectedType = stepType;
-    app.querySelector(".handoff-timer")?.classList.add("is-counting");
+    const duration = ["close", "resolve"].includes(stepType)
+      ? NIGHT_TRANSITION_DURATION
+      : HANDOFF_DURATION;
+    const timer = app.querySelector(".handoff-timer");
+    timer?.style.setProperty("--handoff-duration", `${duration}ms`);
+    timer?.classList.add("is-counting");
     handoffTimer = window.setTimeout(() => {
       handoffTimer = null;
       if (
@@ -1274,9 +1245,10 @@
         state.night?.stepIndex === expectedIndex &&
         currentNightStep()?.type === expectedType
       ) {
-        advanceNight();
+        if (expectedType === "resolve") resolveNight();
+        else advanceNight();
       }
-    }, HANDOFF_DURATION);
+    }, duration);
   }
 
   function clearNightHandoff() {
@@ -1349,7 +1321,7 @@
     inlineActions = false
   }) {
     return shell({
-      eyebrow: `Notte ${state.day} · ${roleMeta(roleId).name}`,
+      eyebrow: `Notte ${nightNumber()} · ${roleMeta(roleId).name}`,
       title,
       intro,
       body: `
@@ -1388,13 +1360,15 @@
 
   function renderNightResolve() {
     return shell({
-      eyebrow: `Notte ${state.day} · Risoluzione`,
+      eyebrow: `Notte ${nightNumber()} · Risoluzione`,
       title: "Tutti tengano gli occhi chiusi",
       intro: "Le scelte sono state registrate. L'app calcolerà sabotaggio, protezione e interferenza.",
-      body: `<div class="night-symbol night-symbol--resolve" aria-hidden="true"><span></span></div>`,
-      actions: `
-        <button class="button button--ghost button--night" data-action="audio-repeat">Ripeti</button>
-        <button class="button button--light" data-action="resolve-night">Fate sorgere l'alba</button>
+      body: `
+        <div class="night-symbol night-symbol--resolve" aria-hidden="true"><span></span></div>
+        <div class="handoff-timer" aria-label="Attesa automatica di cinque secondi">
+          <span aria-hidden="true"></span>
+          <strong>L'alba sorgerà automaticamente tra 5 secondi</strong>
+        </div>
       `
     });
   }
@@ -1499,16 +1473,21 @@
       title: "Come si gioca",
       body: `
         <ol class="rules-list">
-          <li><strong>Si parte di giorno.</strong> I vivi discutono e devono concordare, tramite voto esterno all'app, un solo eliminato.</li>
-          <li><strong>Il ruolo viene rivelato.</strong> L'eliminato non parla, non vota e non gesticola; il Portavoce applica prima il proprio potere.</li>
-          <li><strong>Di notte tutti chiudono gli occhi.</strong> La voce chiama un ruolo alla volta e soltanto quel ruolo usa lo schermo.</li>
+          <li><strong>Si parte dalla Notte 1.</strong> Tutti chiudono gli occhi; dopo cinque secondi la voce inizia a chiamare i ruoli.</li>
           <li><strong>I Sabotatori scelgono insieme.</strong> Indicano un unico bersaglio e non possono scegliere un compagno.</li>
+          <li><strong>All'alba tutti aprono gli occhi.</strong> L'app comunica l'esito della notte e apre direttamente la selezione diurna.</li>
+          <li><strong>Di giorno si discute fuori dall'app.</strong> Quando il gruppo concorda un unico eliminato, ne seleziona il nome sul dispositivo.</li>
+          <li><strong>Il ruolo viene rivelato.</strong> L'eliminato non parla, non vota e non gesticola; il Portavoce applica prima il proprio potere.</li>
           <li><strong>Vittoria.</strong> I Custodi vincono eliminando tutti i Sabotatori; i Sabotatori vincono raggiungendo la parità con la fazione dei Custodi.</li>
         </ol>
         <div class="alert alert--info">Il Naufrago non conta per la parità e vince con la fazione vincitrice soltanto se sopravvive.</div>
       `,
       actions: `<button class="button button--primary button--block" data-action="rules-back" data-return="${escapeHtml(previous)}">Ho capito</button>`
     });
+  }
+
+  function nightNumber() {
+    return state.night?.number || state.day + 1;
   }
 
   function currentNightStep() {
@@ -1585,7 +1564,7 @@
     state.phase = "night";
     state.screen = "night";
     state.night = {
-      number: state.day,
+      number: state.day + 1,
       stepIndex: 0,
       steps: buildNightSteps(),
       actions: emptyNightActions(),
@@ -1594,6 +1573,7 @@
     };
     lastNarrationKey = "";
     saveAndRender();
+    scrollToScreenStart();
   }
 
   function advanceNight() {
@@ -1601,6 +1581,7 @@
     state.night.reviewTargetId = null;
     state.night.stepIndex += 1;
     saveAndRender();
+    scrollToScreenStart();
   }
 
   function previewInvestigation(roleId, action) {
@@ -1694,6 +1675,7 @@
       state.phase = "dawn";
       lastNarrationKey = "";
       saveAndRender();
+      scrollToScreenStart();
     } catch (error) {
       showInlineError(error.message || "Non è stato possibile risolvere la notte.");
     }
@@ -1722,10 +1704,11 @@
 
   function beginPortavoce(playerId, source) {
     state.pendingPortavoce = { playerId, source };
-    state.afterPortavoce = source === "day" ? "night" : "day";
+    state.afterPortavoce = source === "day" ? "night" : "day-elimination";
     state.screen = "portavoce";
     lastNarrationKey = "";
     saveAndRender();
+    scrollToScreenStart();
   }
 
   function finishAfterElimination(source) {
@@ -1738,6 +1721,7 @@
       state.phase = "ended";
       lastNarrationKey = "";
       saveAndRender();
+      scrollToScreenStart();
       return;
     }
     if (source === "day") {
@@ -1748,12 +1732,14 @@
       state.day += 1;
       state.audioWasForced = false;
       state.phase = "day";
-      state.screen = "day";
+      state.screen = "day-elimination";
       state.night = null;
       state.lastDawn = null;
       state.correctionSnapshot = null;
+      state.uiDayTarget = null;
       lastNarrationKey = "";
       saveAndRender();
+      scrollToScreenStart();
     }
   }
 
@@ -1848,15 +1834,11 @@
       scrollToScreenStart();
       return;
     }
-    if (action === "start-day") {
-      audio.enable();
-      audio.bell();
-      state.screen = "day";
-      state.phase = "day";
-      state.day = 1;
+    if (action === "start-night") {
+      state.day = 0;
+      state.uiDayTarget = null;
       lastNarrationKey = "";
-      saveAndRender();
-      scrollToScreenStart();
+      goToNight();
       return;
     }
     if (action === "audio-repeat") {
@@ -1864,30 +1846,10 @@
       repeatScreenNarration();
       return;
     }
-    if (action === "day-elimination") {
-      state.screen = "day-elimination";
-      state.uiDayTarget = null;
-      saveAndRender();
-      scrollToScreenStart();
-      return;
-    }
-    if (action === "day-target-cancel") {
-      state.screen = "day";
-      state.uiDayTarget = null;
-      saveAndRender();
-      scrollToScreenStart();
-      return;
-    }
     if (action === "day-target-review") {
       const id = selectValue("day-target");
       if (!id) return showInlineError("Scegli il giocatore eliminato.");
       state.uiDayTarget = id;
-      render();
-      scrollToScreenStart();
-      return;
-    }
-    if (action === "day-target-back") {
-      state.uiDayTarget = null;
       render();
       scrollToScreenStart();
       return;
@@ -1947,10 +1909,6 @@
     }
     if (action === "private-result-close") {
       advanceNight();
-      return;
-    }
-    if (action === "resolve-night") {
-      resolveNight();
       return;
     }
     if (action === "dawn-continue") {
@@ -2097,7 +2055,7 @@
       state.assignmentRevealed = false;
       state.screen = "assignment";
       state.phase = "assignment";
-      state.day = 1;
+      state.day = 0;
       state.doubleVote = null;
       state.winner = null;
       saveAndRender();
@@ -2314,10 +2272,13 @@
   }
 
   function currentNarration() {
-    if (state.screen === "day") {
+    if (
+      (state.screen === "day" || state.screen === "day-elimination") &&
+      !state.uiDayTarget
+    ) {
       return {
         key: `day-${state.day}`,
-        text: `È il giorno ${state.day}. Aprite gli occhi. Confrontatevi e scegliete un solo giocatore da eliminare.`
+        text: `È il giorno ${state.day}. Aprite gli occhi. Confrontatevi e, quando avete concordato un unico eliminato, selezionatelo sullo schermo.`
       };
     }
     if (state.screen === "elimination") {
@@ -2355,7 +2316,7 @@
     const step = currentNightStep();
     if (!step) return null;
     const texts = {
-      close: "La luce si spegne su Port Leon. Tutti chiudano gli occhi.",
+      close: "La luce si spegne su Port Leon. Tutti chiudano gli occhi. La prima chiamata inizierà automaticamente tra cinque secondi.",
       sabotatori: "",
       saboteurs: "Sabotatori, aprite gli occhi. Concordate un unico bersaglio e confermatelo sullo schermo.",
       "guastatore-handoff": "Sabotatori, tranne il Guastatore, chiudete gli occhi e allontanate le mani dal dispositivo. Guastatore, resta sveglio.",
@@ -2368,10 +2329,10 @@
       cartografa: "Cartografa della Baia, apri gli occhi. Puoi usare il tuo potere oppure attendere.",
       vedetta: "Vedetta, apri gli occhi. Puoi usare il tuo potere oppure attendere.",
       "role-sleep": `${roleMeta(step.roleId).name}, chiudi gli occhi.`,
-      resolve: "Tutti tengano gli occhi chiusi. La notte sta per finire."
+      resolve: "Tutti tengano gli occhi chiusi. L'alba sorgerà automaticamente tra cinque secondi."
     };
     return {
-      key: `night-${state.day}-${state.night.stepIndex}`,
+      key: `night-${nightNumber()}-${state.night.stepIndex}`,
       text: texts[step.type] || ""
     };
   }
@@ -2387,9 +2348,7 @@
   function isNightHandoffScreen() {
     return (
       state.screen === "night" &&
-      ["guastatore-handoff", "role-sleep", "saboteurs-sleep"].includes(
-        currentNightStep()?.type
-      )
+      AUTOMATIC_NIGHT_STEPS.has(currentNightStep()?.type)
     );
   }
 

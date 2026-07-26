@@ -2,6 +2,7 @@
 <html lang="it">
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <base href="../">
   <title>Blackout al Faro — Browser smoke test</title>
   <link rel="stylesheet" href="styles.css">
@@ -26,7 +27,7 @@
   </select>
   <button id="audio-toggle"></button>
   <button id="audio-repeat"></button>
-  <main id="app"></main>
+  <main id="app" class="app-main"></main>
   <div id="privacy-cover" hidden>
     <p class="eyebrow"></p>
     <h2></h2>
@@ -54,8 +55,25 @@
       "use strict";
 
       window.__BLACKOUT_STORAGE_KEY__ =
-        "blackout-al-faro:partita:browser-smoke:v2";
-      localStorage.removeItem(window.__BLACKOUT_STORAGE_KEY__);
+        "blackout-al-faro:partita:browser-smoke:v3";
+      window.__BLACKOUT_SMOKE_RELOAD_KEY__ =
+        `${window.__BLACKOUT_STORAGE_KEY__}:reload`;
+      window.__BLACKOUT_SMOKE_RESUMING__ =
+        localStorage.getItem(window.__BLACKOUT_SMOKE_RELOAD_KEY__) === "1";
+      window.__BLACKOUT_SMOKE_REAL_TIMINGS__ =
+        new URLSearchParams(location.search).has("real-timing");
+      if (!window.__BLACKOUT_SMOKE_REAL_TIMINGS__) {
+        window.__BLACKOUT_TEST_TIMINGS__ = {
+          handoff: 80,
+          nightTransition: 120
+        };
+      }
+      if (window.__BLACKOUT_SMOKE_RESUMING__) {
+        localStorage.removeItem(window.__BLACKOUT_SMOKE_RELOAD_KEY__);
+      } else {
+        localStorage.removeItem(window.__BLACKOUT_STORAGE_KEY__);
+        localStorage.removeItem(window.__BLACKOUT_SMOKE_RELOAD_KEY__);
+      }
 
       let activeUtterance = null;
       const speech = {
@@ -105,6 +123,8 @@
 
       const result = document.getElementById("test-result");
       const app = document.getElementById("app");
+      const transitionWait = window.__BLACKOUT_SMOKE_REAL_TIMINGS__ ? 5300 : 180;
+      const handoffWait = window.__BLACKOUT_SMOKE_REAL_TIMINGS__ ? 3000 : 120;
 
       function assert(condition, message) {
         if (!condition) throw new Error(message);
@@ -117,7 +137,16 @@
       }
 
       function nextFrame() {
-        return new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        return new Promise((resolve) => {
+          let completed = false;
+          const finish = () => {
+            if (completed) return;
+            completed = true;
+            resolve();
+          };
+          requestAnimationFrame(() => requestAnimationFrame(finish));
+          setTimeout(finish, 50);
+        });
       }
 
       function delay(milliseconds) {
@@ -131,8 +160,72 @@
         beacon.src = `http://127.0.0.1:${port}/${encodeURIComponent(status)}?t=${Date.now()}`;
       }
 
-      async function run() {
+      async function completeDayAfterReload() {
+        assert(app.textContent.includes("Giorno 1"), "Giorno 1 non ripristinato");
+        assert(
+          app.textContent.includes("Voto doppio attivo"),
+          "Voto doppio del Portavoce perso dopo il reload"
+        );
+        assert(
+          app.querySelector('input[name="day-target"]') &&
+          !app.querySelector('[data-action="day-elimination"]'),
+          "Il giorno non apre direttamente la scelta dell'eliminato"
+        );
+
+        const dayTargets = Array.from(app.querySelectorAll('input[name="day-target"]'));
+        const lastDayTarget = dayTargets.at(-1);
+        const lastDayOption = lastDayTarget?.closest(".target-option");
+        const dayActionBar = app.querySelector(".action-bar");
+        assert(lastDayOption && dayActionBar, "Lista diurna incompleta");
+        window.scrollTo(0, document.documentElement.scrollHeight);
+        await delay(40);
+        const lastBounds = lastDayOption.getBoundingClientRect();
+        const actionBounds = dayActionBar.getBoundingClientRect();
+        const lastHit = document.elementFromPoint(
+          lastBounds.left + lastBounds.width / 2,
+          lastBounds.top + lastBounds.height / 2
+        );
+        assert(
+          lastBounds.bottom <= actionBounds.top && lastDayOption.contains(lastHit),
+          "L'ultimo giocatore diurno non è visibile o selezionabile"
+        );
+
+        lastDayTarget.checked = true;
+        click("day-target-review");
+        await nextFrame();
+        assert(
+          app.querySelector('[data-action="day-target-confirm"]') &&
+          !app.querySelector('[data-action="day-target-back"]'),
+          "La conferma mostra ancora il pulsante Cambia nome"
+        );
+        click("day-target-confirm");
+        await nextFrame();
+        assert(app.textContent.includes("Ruolo rivelato"), "Rivelazione eliminato assente");
+
+        click("elimination-continue");
+        await delay(60);
+        assert(app.textContent.includes("Notte 2"), "La Notte 2 non è iniziata dopo il Giorno 1");
+
         localStorage.removeItem(window.__BLACKOUT_STORAGE_KEY__);
+        localStorage.removeItem(window.__BLACKOUT_SMOKE_RELOAD_KEY__);
+        result.value = "PASS";
+        result.textContent = "PASS";
+        document.documentElement.dataset.testStatus = "pass";
+        report("PASS");
+      }
+
+      async function run() {
+        if (window.__BLACKOUT_SMOKE_RESUMING__) {
+          assert(
+            app.querySelector('[data-action="continue-game"]'),
+            "Partita salvata non disponibile dopo il reload"
+          );
+          click("continue-game");
+          await nextFrame();
+          await completeDayAfterReload();
+          return;
+        }
+
         assert(app.textContent.includes("Blackout al Faro"), "Benvenuto assente");
 
         click("new-game");
@@ -164,7 +257,7 @@
 
         click("start-assignment");
         await nextFrame();
-        assert(app.textContent.includes("Tieni premuto"), "Passaggio dispositivo assente");
+        assert(app.textContent.includes("Tieni premuta"), "Passaggio dispositivo assente");
         assert(
           app.querySelector(".action-bar")?.classList.contains("action-bar--inline"),
           "Annulla assegnazione non è nel flusso della pagina"
@@ -208,45 +301,29 @@
         assert(portavoceIndex >= 0, "Portavoce non assegnato");
 
         assert(app.textContent.includes("Il faro è pronto"), "Schermata pronta assente");
-        click("start-day");
-        await nextFrame();
-        assert(app.textContent.includes("Giorno 1"), "Giorno 1 assente");
-
-        click("day-elimination");
-        await nextFrame();
-        const dayTarget = app.querySelectorAll('input[name="day-target"]')[portavoceIndex];
-        assert(dayTarget, "Nessun bersaglio diurno");
-        dayTarget.checked = true;
-        click("day-target-review");
-        await nextFrame();
-        click("day-target-confirm");
-        await nextFrame();
-        assert(app.textContent.includes("Ruolo rivelato"), "Rivelazione eliminato assente");
-
-        click("elimination-continue");
-        await nextFrame();
-        assert(app.textContent.includes("ultima parola"), "Potere del Portavoce assente");
-        const bonusTarget = app.querySelector('input[name="portavoce-target"]');
-        assert(bonusTarget, "Nessun destinatario per il voto doppio");
-        bonusTarget.checked = true;
         window.__BLACKOUT_TEST_SPEECH__.failNext = true;
-        click("portavoce-designate");
+        click("start-night");
         await delay(60);
         assert(
-          app.textContent.includes("ultima parola"),
-          "Il fallimento del preflight ha perso lo stato del Portavoce"
+          app.textContent.includes("Il faro è pronto"),
+          "Il fallimento del preflight ha avviato la notte"
         );
         assert(
           app.querySelector(".inline-error")?.textContent.includes("non ha risposto"),
           "Errore del preflight non mostrato"
         );
-        click("portavoce-designate");
+        click("start-night");
         await delay(60);
-        assert(app.textContent.includes("La luce si spegne"), "Notte non iniziata");
+        assert(app.textContent.includes("Notte 1"), "La partita non inizia dalla Notte 1");
+        assert(app.textContent.includes("La luce si spegne"), "Schermata di chiusura occhi assente");
+        assert(
+          app.querySelector(".handoff-timer") &&
+          !app.querySelector('[data-action="night-next"]'),
+          "L'inizio della notte richiede ancora un comando manuale"
+        );
 
         window.__BLACKOUT_TEST_SPEECH__.failNext = true;
-        click("night-next");
-        await delay(60);
+        await delay(transitionWait);
         const privacyCover = document.getElementById("privacy-cover");
         const privacyButton = privacyCover.querySelector("button");
         assert(!privacyCover.hidden, "Cover non mostrata dopo errore della voce");
@@ -277,11 +354,14 @@
         );
 
         let sawGuastatoreHandoff = false;
-        for (let guard = 0; guard < 20 && !app.textContent.includes("Alba del Giorno"); guard += 1) {
+        let sawAutomaticDawn = false;
+        for (let guard = 0; guard < 30 && !app.textContent.includes("Alba del Giorno"); guard += 1) {
           if (app.querySelector('[data-action="night-next"]')) {
             click("night-next");
           } else if (app.querySelector('[data-action="sab-target-review"]')) {
-            const target = app.querySelector('input[name="night-sabotage-target"]');
+            const target = app.querySelector(
+              `input[name="night-sabotage-target"][value="p${portavoceIndex + 1}"]`
+            );
             assert(target, "Nessun bersaglio notturno");
             target.checked = true;
             click("sab-target-review");
@@ -293,13 +373,20 @@
             skip.click();
           } else if (app.querySelector('[data-action="investigator-skip"]')) {
             click("investigator-skip");
-          } else if (app.querySelector('[data-action="resolve-night"]')) {
-            click("resolve-night");
           } else if (app.querySelector(".handoff-timer")) {
             if (app.textContent.includes("Solo il Guastatore resta sveglio")) {
               sawGuastatoreHandoff = true;
             }
-            await delay(3000);
+            if (app.textContent.includes("L'alba sorgerà automaticamente")) {
+              sawAutomaticDawn = true;
+              assert(
+                !app.querySelector('[data-action="resolve-night"]'),
+                "La risoluzione della notte richiede ancora un comando manuale"
+              );
+              await delay(transitionWait);
+            } else {
+              await delay(handoffWait);
+            }
           } else {
             throw new Error(`Flusso notturno bloccato: ${app.textContent.slice(0, 120)}`);
           }
@@ -307,16 +394,34 @@
         }
 
         assert(sawGuastatoreHandoff, "Passaggio pubblico al Guastatore assente");
-        assert(app.textContent.includes("Alba del Giorno 2"), "Alba non raggiunta");
+        assert(sawAutomaticDawn, "Attesa automatica prima dell'alba assente");
+        assert(app.textContent.includes("Alba del Giorno 1"), "Alba del Giorno 1 non raggiunta");
         click("dawn-continue");
         await nextFrame();
-        assert(app.textContent.includes("Giorno 2"), "Giorno 2 non raggiunto");
+        assert(app.textContent.includes("ultima parola"), "Potere del Portavoce assente");
 
-        localStorage.removeItem(window.__BLACKOUT_STORAGE_KEY__);
-        result.value = "PASS";
-        result.textContent = "PASS";
-        document.documentElement.dataset.testStatus = "pass";
-        report("PASS");
+        const bonusTarget = app.querySelector('input[name="portavoce-target"]');
+        assert(bonusTarget, "Nessun destinatario per il voto doppio");
+        bonusTarget.checked = true;
+        click("portavoce-designate");
+        await nextFrame();
+
+        assert(app.textContent.includes("Giorno 1"), "Giorno 1 non raggiunto");
+        assert(app.textContent.includes("Voto doppio attivo"), "Voto doppio del Portavoce assente");
+        assert(
+          app.querySelector('input[name="day-target"]') &&
+          !app.querySelector('[data-action="day-elimination"]'),
+          "Il giorno non apre direttamente la scelta dell'eliminato"
+        );
+        const storedGame = JSON.parse(
+          localStorage.getItem(window.__BLACKOUT_STORAGE_KEY__) || "null"
+        );
+        assert(
+          storedGame?.doubleVote?.createdOnDay === 0,
+          "Il voto doppio della prima notte non è stato salvato correttamente"
+        );
+        localStorage.setItem(window.__BLACKOUT_SMOKE_RELOAD_KEY__, "1");
+        location.reload();
       }
 
       setTimeout(() => {

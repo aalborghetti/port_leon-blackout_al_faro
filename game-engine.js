@@ -935,7 +935,7 @@
       designatedPlayerId: config.designatedPlayerId,
       status: "active",
       createdOnDay:
-        Number.isInteger(config.createdOnDay) && config.createdOnDay > 0
+        Number.isInteger(config.createdOnDay) && config.createdOnDay >= 0
           ? config.createdOnDay
           : null,
       createdAfterPhase: config.createdAfterPhase || null,

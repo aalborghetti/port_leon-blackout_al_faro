@@ -44,9 +44,9 @@ I comandi locali richiedono Node.js 22 o successivo e non installano dipendenze.
 - scelta libera dei personaggi speciali entro i limiti di composizione;
 - assegnazione casuale con generatore crittograficamente sicuro del browser;
 - rivelazione privata dei ruoli con pressione prolungata;
-- inizio della partita dal Giorno 1;
+- inizio della partita dalla Notte 1;
 - registrazione obbligatoria di un eliminato ogni giorno;
-- sequenza notturna guidata con scelte e risultati privati;
+- sequenza notturna guidata con transizioni automatiche quando tutti hanno gli occhi chiusi;
 - utilizzi dei poteri, interferenza del Guastatore e protezione del Tecnico;
 - rivelazione pubblica dei ruoli eliminati;
 - voto doppio assegnato dal Portavoce;
@@ -63,14 +63,18 @@ dall'app, poi comunica al dispositivo soltanto il nome dell'eliminato.
 1. Si scelgono numero di giocatori, nomi, speciali e modalità audio.
 2. Il dispositivo viene passato a turno; ogni giocatore tiene premuto per
    vedere il proprio ruolo, poi lo nasconde.
-3. Il dispositivo viene posato al centro e inizia il Giorno 1.
-4. Il gruppo discute, svolge la votazione e registra un unico eliminato.
-5. L'app rivela il ruolo, applica l'eventuale Portavoce e controlla la vittoria.
-6. Se la partita continua, la voce guida la notte. Solo il ruolo chiamato apre
-   gli occhi e interagisce con lo schermo.
-7. All'alba l'app comunica soltanto l'eliminato, oppure che nessuno è stato
+3. Il dispositivo viene posato al centro e inizia la Notte 1. Tutti chiudono
+   gli occhi e, dopo cinque secondi, la voce chiama automaticamente il primo
+   ruolo.
+4. Solo il ruolo chiamato apre gli occhi e interagisce con lo schermo. Al
+   termine della sequenza l'alba viene risolta automaticamente dopo cinque
+   secondi.
+5. All'alba l'app comunica soltanto l'eliminato, oppure che nessuno è stato
    eliminato. L'eventuale interferenza viene annunciata pubblicamente.
-8. Giorno e notte si alternano fino alla vittoria di una fazione.
+6. Il Giorno 1 si apre direttamente sulla lista dei vivi: il gruppo discute,
+   vota fuori dall'app e seleziona un unico eliminato.
+7. L'app rivela il ruolo, applica l'eventuale Portavoce e controlla la vittoria.
+8. Notte e giorno si alternano fino alla vittoria di una fazione.
 
 ## Composizione
 
@@ -265,8 +269,9 @@ Senza Node.js, gli stessi test si possono eseguire aprendo
 `tests/game-engine-browser.html`.
 
 `tests/browser-smoke.html` percorre inoltre nel browser un'intera sequenza:
-setup, otto assegnazioni, Giorno 1, eliminazione, notte, alba e Giorno 2. Usa una
-chiave di salvataggio isolata e non tocca eventuali partite reali.
+setup, otto assegnazioni, Notte 1 con transizioni automatiche, alba, selezione
+diretta del Giorno 1, eliminazione e avvio della Notte 2. Usa una chiave di
+salvataggio isolata e non tocca eventuali partite reali.
 
 ## Struttura
 

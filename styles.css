@@ -2059,7 +2059,7 @@ button.button--night {
 }
 
 .handoff-timer.is-counting > span {
-  animation: handoff-progress 2800ms linear forwards;
+  animation: handoff-progress var(--handoff-duration, 2800ms) linear forwards;
 }
 
 @keyframes handoff-progress {
