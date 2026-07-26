@@ -1,0 +1,80 @@
+.brand--link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.sample-back-link {
+  flex: 0 0 auto;
+}
+
+.voice-samples-page {
+  padding-bottom: calc(2.5rem + var(--safe-bottom));
+}
+
+.sample-phrase {
+  margin: 1.5rem 0;
+  padding: 1rem 1.15rem;
+  border-left: 0.35rem solid var(--amber);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: rgba(221, 157, 50, 0.11);
+  color: var(--navy);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(1.1rem, 4vw, 1.35rem);
+}
+
+.voice-sample-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.voice-sample-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: 3rem minmax(0, 1fr);
+  gap: 0.9rem 1rem;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.52);
+  box-shadow: var(--shadow-sm);
+}
+
+.voice-sample-card__letter {
+  display: grid;
+  width: 3rem;
+  height: 3rem;
+  grid-row: 1;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--navy);
+  color: var(--ivory-soft);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.45rem;
+  font-weight: 700;
+}
+
+.voice-sample-card h2 {
+  margin-bottom: 0.35rem;
+}
+
+.voice-sample-card p:last-child {
+  margin-bottom: 0;
+}
+
+.voice-sample-card audio {
+  width: 100%;
+  min-width: 0;
+  grid-column: 1 / -1;
+}
+
+.sample-note {
+  margin-top: 1.25rem;
+}
+
+@media (max-width: 520px) {
+  .sample-back-link {
+    min-height: var(--touch-size);
+    padding-inline: 0.7rem;
+    font-size: 0.78rem;
+  }
+}

@@ -20,10 +20,15 @@ function copy(relativePath) {
 
 for (const file of [
   "index.html",
+  "voice-samples.html",
+  "voice-samples.css",
   "styles.css",
   "game-engine.js",
   "app.js",
-  "art/cards/minimal/card-back-lighthouse.png"
+  "art/cards/minimal/card-back-lighthouse.png",
+  "audio/voice-samples/voce-a-calma.mp3",
+  "audio/voice-samples/voce-b-profonda.mp3",
+  "audio/voice-samples/voce-c-radio.mp3"
 ]) {
   copy(file);
 }

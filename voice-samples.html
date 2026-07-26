@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#F8E8D6">
+  <meta
+    name="description"
+    content="Confronto dei tre provini per la voce narrante di Blackout al Faro."
+  >
+  <title>Provini della voce narrante — Blackout al Faro</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="voice-samples.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="app-topbar">
+      <a class="brand brand--link" href="./" aria-label="Torna a Blackout al Faro">
+        <span class="brand__mark" aria-hidden="true">
+          <span class="brand__beam"></span>
+          <span class="brand__tower"></span>
+        </span>
+        <span class="brand__text">
+          <span class="brand__eyebrow">Port Leon</span>
+          <span class="brand__title">Blackout al Faro</span>
+        </span>
+      </a>
+      <a class="button button--ghost sample-back-link" href="./">Torna al gioco</a>
+    </header>
+
+    <main class="app-main voice-samples-page">
+      <section aria-labelledby="samples-title">
+        <header class="screen__header">
+          <p class="eyebrow">Scelta della voce narrante</p>
+          <h1 id="samples-title">Tre voci nella notte</h1>
+          <p class="lead">
+            Ascolta la stessa frase in tutte le versioni, possibilmente con lo
+            stesso volume. Nessuna di queste voci è ancora attiva nel gioco.
+          </p>
+        </header>
+
+        <blockquote class="sample-phrase">
+          «La luce si spegne su Port Leon. Tutti chiudano gli occhi.»
+        </blockquote>
+
+        <div class="voice-sample-grid">
+          <article class="voice-sample-card">
+            <span class="voice-sample-card__letter" aria-hidden="true">A</span>
+            <div>
+              <p class="eyebrow">Voce A</p>
+              <h2>Calma e autorevole</h2>
+              <p>
+                Ritmo misurato e tono rassicurante. Pensata per guidare la
+                notte con chiarezza senza perdere tensione.
+              </p>
+            </div>
+            <audio controls preload="metadata" aria-label="Riproduci la voce A, calma e autorevole">
+              <source src="audio/voice-samples/voce-a-calma.mp3" type="audio/mpeg">
+              Il browser non supporta la riproduzione audio.
+            </audio>
+          </article>
+
+          <article class="voice-sample-card">
+            <span class="voice-sample-card__letter" aria-hidden="true">B</span>
+            <div>
+              <p class="eyebrow">Voce B</p>
+              <h2>Profonda e solenne</h2>
+              <p>
+                Timbro più scuro e ritmo lento. Richiama il guardiano di un
+                faro isolato durante una notte di tempesta.
+              </p>
+            </div>
+            <audio controls preload="metadata" aria-label="Riproduci la voce B, profonda e solenne">
+              <source src="audio/voice-samples/voce-b-profonda.mp3" type="audio/mpeg">
+              Il browser non supporta la riproduzione audio.
+            </audio>
+          </article>
+
+          <article class="voice-sample-card">
+            <span class="voice-sample-card__letter" aria-hidden="true">C</span>
+            <div>
+              <p class="eyebrow">Voce C</p>
+              <h2>Nitida e radio costiera</h2>
+              <p>
+                Più rapida e neutra, simile a una comunicazione di servizio
+                proveniente dalla stazione di Port Leon.
+              </p>
+            </div>
+            <audio controls preload="metadata" aria-label="Riproduci la voce C, nitida e radio costiera">
+              <source src="audio/voice-samples/voce-c-radio.mp3" type="audio/mpeg">
+              Il browser non supporta la riproduzione audio.
+            </audio>
+          </article>
+        </div>
+
+        <div class="alert alert--info sample-note">
+          Questi file servono esclusivamente a scegliere direzione e timbro.
+          Dopo la scelta verranno rifinite interpretazione, pause e dizione
+          prima di produrre tutte le frasi del gioco.
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    document.querySelectorAll("audio").forEach((player) => {
+      player.addEventListener("play", () => {
+        document.querySelectorAll("audio").forEach((other) => {
+          if (other !== player) other.pause();
+        });
+      });
+    });
+  </script>
+</body>
+</html>
