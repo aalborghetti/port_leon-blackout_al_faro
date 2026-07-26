@@ -977,6 +977,7 @@ button.choice-card {
 
 /* Carta ruolo verticale 5:7 */
 .card-viewer {
+  display: block;
   width: min(100%, 21rem);
   margin: 0 auto;
   perspective: 70rem;
@@ -1733,7 +1734,7 @@ button.button--night {
 }
 
 .card-viewer--back {
-  width: min(68vw, 15rem);
+  width: min(68vw, clamp(9rem, 36dvh, 15rem));
 }
 
 .card-viewer--front,
@@ -1752,6 +1753,36 @@ button.button--night {
 }
 
 .hold-button.is-holding .hold-button__progress {
+  animation: hold-fill 720ms linear forwards;
+}
+
+.assignment-reveal {
+  display: grid;
+  width: 100%;
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  appearance: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  touch-action: none;
+  -webkit-touch-callout: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.assignment-reveal:focus-visible {
+  outline: none;
+}
+
+.assignment-reveal:focus-visible .assignment-reveal__prompt {
+  outline: 3px solid var(--amber);
+  outline-offset: 3px;
+}
+
+.assignment-reveal.is-holding .hold-button__progress {
   animation: hold-fill 720ms linear forwards;
 }
 
@@ -2212,6 +2243,23 @@ body[data-theme="night"] .target-list legend {
     grid-column: 1 / -1;
     justify-self: center;
   }
+}
+
+.action-bar.action-bar--inline,
+body[data-theme="night"] .action-bar.action-bar--inline {
+  position: static;
+  grid-template-columns: minmax(0, 1fr);
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.action-bar.action-bar--inline > * {
+  justify-self: center;
 }
 
 @media (prefers-contrast: more) {

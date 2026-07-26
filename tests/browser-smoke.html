@@ -2,7 +2,21 @@
 <html lang="it">
 <head>
   <meta charset="utf-8">
+  <base href="../">
   <title>Blackout al Faro — Browser smoke test</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    #test-result {
+      position: fixed;
+      z-index: 1000;
+      top: 0;
+      left: 0;
+      padding: 0.5rem;
+      background: white;
+      color: black;
+      font: 700 14px/1.2 monospace;
+    }
+  </style>
 </head>
 <body>
   <select id="audio-mode">
@@ -22,6 +36,19 @@
   <div id="public-announcer"></div>
   <output id="test-result">RUNNING</output>
 
+  <script>
+    window.addEventListener("error", function (event) {
+      const result = document.getElementById("test-result");
+      result.value = `FAIL BOOT: ${event.message}`;
+      result.textContent = `FAIL BOOT: ${event.message}`;
+    });
+    window.addEventListener("unhandledrejection", function (event) {
+      const result = document.getElementById("test-result");
+      const message = event.reason?.message || String(event.reason);
+      result.value = `FAIL PROMISE: ${message}`;
+      result.textContent = `FAIL PROMISE: ${message}`;
+    });
+  </script>
   <script>
     (function () {
       "use strict";
@@ -70,8 +97,8 @@
       });
     })();
   </script>
-  <script src="../game-engine.js"></script>
-  <script src="../app.js"></script>
+  <script src="game-engine.js"></script>
+  <script src="app.js"></script>
   <script>
     (function () {
       "use strict";
@@ -138,11 +165,40 @@
         click("start-assignment");
         await nextFrame();
         assert(app.textContent.includes("Tieni premuto"), "Passaggio dispositivo assente");
+        assert(
+          app.querySelector(".action-bar")?.classList.contains("action-bar--inline"),
+          "Annulla assegnazione non è nel flusso della pagina"
+        );
 
         let portavoceIndex = -1;
         for (let index = 0; index < 8; index += 1) {
-          app.querySelector('[data-action="hold-reveal"]').focus();
-          document.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+          const revealControl = app.querySelector('[data-action="hold-reveal"]');
+          assert(revealControl, `Controllo di rivelazione ${index + 1} assente`);
+          if (index === 0) {
+            const cardBack = revealControl.querySelector("img");
+            cardBack.scrollIntoView({ block: "center" });
+            await nextFrame();
+            const bounds = cardBack.getBoundingClientRect();
+            const hitTarget = document.elementFromPoint(
+              bounds.left + bounds.width / 2,
+              bounds.top + bounds.height / 2
+            );
+            assert(
+              revealControl.contains(hitTarget),
+              "Il dorso della carta è coperto da un altro controllo"
+            );
+            revealControl.setPointerCapture = function () {};
+            cardBack.dispatchEvent(new PointerEvent("pointerdown", {
+              bubbles: true,
+              pointerId: 1,
+              pointerType: "mouse",
+              isPrimary: true
+            }));
+            await delay(760);
+          } else {
+            revealControl.focus();
+            document.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+          }
           await nextFrame();
           assert(app.textContent.includes("Sei "), `Ruolo ${index + 1} non rivelato`);
           if (app.textContent.includes("Sei Portavoce")) portavoceIndex = index;

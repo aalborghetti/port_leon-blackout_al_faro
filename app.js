@@ -749,7 +749,15 @@
     return state.audioWasForced ? "voice" : state.setup.audioMode;
   }
 
-  function shell({ eyebrow = "Blackout al Faro", title, intro = "", body = "", actions = "", compact = false }) {
+  function shell({
+    eyebrow = "Blackout al Faro",
+    title,
+    intro = "",
+    body = "",
+    actions = "",
+    compact = false,
+    inlineActions = false
+  }) {
     return `
       <section class="screen ${sceneForState() === "night" ? "screen--night" : ""} ${isSecretState() ? "screen--secret" : ""} ${compact ? "screen--compact" : ""}">
         <header class="screen__header">
@@ -758,7 +766,7 @@
           ${intro ? `<p class="lead">${escapeHtml(intro)}</p>` : ""}
         </header>
         <div class="screen__body">${body}</div>
-        ${actions ? `<div class="action-bar">${actions}</div>` : ""}
+        ${actions ? `<div class="action-bar${inlineActions ? " action-bar--inline" : ""}">${actions}</div>` : ""}
       </section>
     `;
   }
@@ -918,17 +926,29 @@
       return shell({
         eyebrow: `Assegnazione · ${progress}`,
         title: `Passa il dispositivo a ${player.name}`,
-        intro: "Gli altri distolgano lo sguardo. Tieni premuto per vedere il ruolo.",
+        intro: "Gli altri distolgano lo sguardo. Tieni premuta la carta per vedere il ruolo.",
         body: `
-          <div class="card-viewer card-viewer--back">
-            <img src="art/cards/minimal/card-back-lighthouse.png" alt="Dorso della carta con il faro" />
-          </div>
-          <button class="hold-button" data-action="hold-reveal" aria-label="Tieni premuto per rivelare il ruolo">
-            <span class="hold-button__progress" aria-hidden="true"></span>
-            <span>Tieni premuto per rivelare</span>
+          <button
+            class="assignment-reveal"
+            type="button"
+            data-action="hold-reveal"
+            aria-label="Tieni premuta la carta per rivelare il ruolo"
+          >
+            <span class="card-viewer card-viewer--back" aria-hidden="true">
+              <img
+                src="art/cards/minimal/card-back-lighthouse.png"
+                alt=""
+                draggable="false"
+              />
+            </span>
+            <span class="hold-button assignment-reveal__prompt" aria-hidden="true">
+              <span class="hold-button__progress"></span>
+              <span>Tieni premuta la carta per rivelare</span>
+            </span>
           </button>
         `,
-        actions: `<button class="button button--ghost" data-action="abort-assignment">Annulla assegnazione</button>`
+        actions: `<button class="button button--ghost" data-action="abort-assignment">Annulla assegnazione</button>`,
+        inlineActions: true
       });
     }
 
@@ -1737,6 +1757,10 @@
     render();
   }
 
+  function scrollToScreenStart() {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }
+
   function selectValue(name) {
     return document.querySelector(`input[name="${name}"]:checked`)?.value || null;
   }
@@ -1769,6 +1793,7 @@
       state.assignmentRevealed = false;
       audio.setMode(effectiveAudioMode());
       render();
+      if (state.screen === "assignment") scrollToScreenStart();
       if (isSecretState()) showPrivacyCover();
       return;
     }
@@ -1807,6 +1832,7 @@
       state.assignmentIndex += 1;
       if (state.assignmentIndex >= state.players.length) state.screen = "ready";
       saveAndRender();
+      scrollToScreenStart();
       return;
     }
     if (action === "start-day") {
@@ -2057,6 +2083,7 @@
       state.doubleVote = null;
       state.winner = null;
       saveAndRender();
+      scrollToScreenStart();
     } catch (error) {
       showInlineError(error.message || "Configurazione non valida.");
     }
@@ -2146,6 +2173,7 @@
       button.classList.remove("is-holding");
       state.assignmentRevealed = true;
       saveAndRender();
+      scrollToScreenStart();
     }, HOLD_DURATION);
   }
 
@@ -2561,6 +2589,7 @@
       event.preventDefault();
       state.assignmentRevealed = true;
       saveAndRender();
+      scrollToScreenStart();
     }
   });
   document.addEventListener("visibilitychange", () => {

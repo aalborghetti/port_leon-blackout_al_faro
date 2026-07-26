@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <base href="../">
+  <title>Blackout al Faro — Assignment browser test</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    #test-result {
+      position: fixed;
+      z-index: 1000;
+      top: 0;
+      left: 0;
+      padding: 0.4rem;
+      background: white;
+      color: black;
+      font: 700 12px/1.2 monospace;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="app-topbar">
+      <div class="brand">
+        <span class="brand__text">
+          <span class="brand__eyebrow">Port Leon</span>
+          <span class="brand__title">Blackout al Faro</span>
+        </span>
+      </div>
+      <div class="audio-toolbar">
+        <select id="audio-mode" class="audio-toolbar__mode">
+          <option value="muted">Muto</option>
+        </select>
+        <button id="audio-toggle" class="icon-button" type="button">♪</button>
+        <button id="audio-repeat" class="icon-button" type="button">↻</button>
+      </div>
+    </header>
+    <main id="app" class="app-main"></main>
+  </div>
+  <div id="privacy-cover" hidden>
+    <p class="eyebrow"></p>
+    <h2></h2>
+    <p></p>
+    <button type="button" data-action="resume-private-screen">Riprendi</button>
+  </div>
+  <div id="public-announcer"></div>
+  <output id="test-result">BOOT</output>
+
+  <script>
+    window.__BLACKOUT_STORAGE_KEY__ = "blackout-al-faro:assignment-browser-test";
+    localStorage.removeItem(window.__BLACKOUT_STORAGE_KEY__);
+  </script>
+  <script src="game-engine.js"></script>
+  <script src="app.js"></script>
+  <script>
+    (function () {
+      const app = document.getElementById("app");
+      const result = document.getElementById("test-result");
+      const shouldHold = new URLSearchParams(location.search).has("hold");
+
+      function report(text) {
+        result.value = text;
+        result.textContent = text;
+      }
+
+      window.addEventListener("error", (event) => report(`FAIL: ${event.message}`));
+
+      setTimeout(() => {
+        app.querySelector('[data-action="new-game"]')?.click();
+      }, 50);
+
+      setTimeout(() => {
+        const start = app.querySelector('[data-action="start-assignment"]');
+        if (!start || start.disabled) {
+          report("FAIL: setup");
+          return;
+        }
+        start.click();
+      }, 150);
+
+      setTimeout(() => {
+        const reveal = app.querySelector('[data-action="hold-reveal"]');
+        const inlineCancel = app.querySelector(".action-bar--inline");
+        if (!reveal || !inlineCancel) {
+          report("FAIL: layout");
+          return;
+        }
+        const promptBounds = reveal.querySelector(".assignment-reveal__prompt").getBoundingClientRect();
+        const cancelBounds = inlineCancel.getBoundingClientRect();
+        if (
+          getComputedStyle(inlineCancel).position !== "static" ||
+          promptBounds.bottom > cancelBounds.top ||
+          promptBounds.left < 0 ||
+          promptBounds.right > window.innerWidth + 1
+        ) {
+          report("FAIL: overlap");
+          return;
+        }
+        report("READY");
+        if (!shouldHold) return;
+        reveal.setPointerCapture = function () {};
+        reveal.querySelector("img").dispatchEvent(new PointerEvent("pointerdown", {
+          bubbles: true,
+          pointerId: 1,
+          pointerType: "mouse",
+          isPrimary: true
+        }));
+      }, 350);
+
+      setTimeout(() => {
+        if (!shouldHold) return;
+        report(app.textContent.includes("Sei ") ? "PASS" : "FAIL: hold");
+      }, 1150);
+    })();
+  </script>
+</body>
+</html>
