@@ -91,13 +91,13 @@
 
       const tests = window.__engineBrowserTests;
       const result = document.getElementById("test-result");
-      const status = tests.failures.length
-        ? `FAIL: ${tests.failures.join(" | ")}`
+      const passed = tests.failures.length === 0 && tests.completed === 30;
+      const status = !passed
+        ? `FAIL: ${tests.completed}/30 completati${tests.failures.length ? ` — ${tests.failures.join(" | ")}` : ""}`
         : `PASS: ${tests.completed}/30`;
       result.value = status;
       result.textContent = status;
-      document.documentElement.dataset.testStatus =
-        tests.failures.length ? "fail" : "pass";
+      document.documentElement.dataset.testStatus = passed ? "pass" : "fail";
 
       const port = new URLSearchParams(window.location.search).get("report");
       if (/^\d{2,5}$/.test(port || "")) {

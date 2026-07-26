@@ -13,7 +13,12 @@
   <button id="audio-toggle"></button>
   <button id="audio-repeat"></button>
   <main id="app"></main>
-  <div id="privacy-cover" hidden><button type="button">Riprendi</button></div>
+  <div id="privacy-cover" hidden>
+    <p class="eyebrow"></p>
+    <h2></h2>
+    <p></p>
+    <button type="button" data-action="resume-private-screen">Riprendi</button>
+  </div>
   <div id="public-announcer"></div>
   <output id="test-result">RUNNING</output>
 
@@ -21,8 +26,14 @@
     (function () {
       "use strict";
 
+      window.__BLACKOUT_STORAGE_KEY__ =
+        "blackout-al-faro:partita:browser-smoke:v2";
+      localStorage.removeItem(window.__BLACKOUT_STORAGE_KEY__);
+
       let activeUtterance = null;
       const speech = {
+        failNext: false,
+        spokenTexts: [],
         cancel() {
           const cancelled = activeUtterance;
           activeUtterance = null;
@@ -35,13 +46,18 @@
         },
         speak(utterance) {
           activeUtterance = utterance;
+          this.spokenTexts.push(utterance.text);
+          const shouldFail = this.failNext;
+          this.failNext = false;
           setTimeout(() => {
             if (activeUtterance !== utterance) return;
             activeUtterance = null;
-            utterance.onend?.();
+            if (shouldFail) utterance.onerror?.({ error: "synthesis-failed" });
+            else utterance.onend?.();
           }, 20);
         }
       };
+      window.__BLACKOUT_TEST_SPEECH__ = speech;
 
       if (!window.SpeechSynthesisUtterance) {
         window.SpeechSynthesisUtterance = function (text) {
@@ -89,26 +105,51 @@
       }
 
       async function run() {
-        localStorage.removeItem("blackout-al-faro:partita:v2");
+        localStorage.removeItem(window.__BLACKOUT_STORAGE_KEY__);
         assert(app.textContent.includes("Blackout al Faro"), "Benvenuto assente");
 
         click("new-game");
         await nextFrame();
         assert(app.textContent.includes("Prepara l'equipaggio"), "Setup assente");
-        assert(!app.querySelector('[data-action="start-assignment"]').disabled, "Setup predefinito non valido");
+
+        const sentinella = app.querySelector(
+          'input[data-field="setup-special"][value="sentinella"]'
+        );
+        sentinella.checked = false;
+        sentinella.dispatchEvent(new Event("change", { bubbles: true }));
+        await nextFrame();
+        const portavoce = app.querySelector(
+          'input[data-field="setup-special"][value="portavoce"]'
+        );
+        portavoce.checked = true;
+        portavoce.dispatchEvent(new Event("change", { bubbles: true }));
+        await nextFrame();
+        const muted = app.querySelector(
+          'input[data-field="setup-audio"][value="muted"]'
+        );
+        muted.checked = true;
+        muted.dispatchEvent(new Event("change", { bubbles: true }));
+        await nextFrame();
+        assert(
+          !app.querySelector('[data-action="start-assignment"]').disabled,
+          "Setup Portavoce/Guastatore non valido"
+        );
 
         click("start-assignment");
         await nextFrame();
         assert(app.textContent.includes("Tieni premuto"), "Passaggio dispositivo assente");
 
+        let portavoceIndex = -1;
         for (let index = 0; index < 8; index += 1) {
           app.querySelector('[data-action="hold-reveal"]').focus();
           document.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
           await nextFrame();
           assert(app.textContent.includes("Sei "), `Ruolo ${index + 1} non rivelato`);
+          if (app.textContent.includes("Sei Portavoce")) portavoceIndex = index;
           click("hide-role");
           await nextFrame();
         }
+        assert(portavoceIndex >= 0, "Portavoce non assegnato");
 
         assert(app.textContent.includes("Il faro è pronto"), "Schermata pronta assente");
         click("start-day");
@@ -117,7 +158,7 @@
 
         click("day-elimination");
         await nextFrame();
-        const dayTarget = app.querySelector('input[name="day-target"]');
+        const dayTarget = app.querySelectorAll('input[name="day-target"]')[portavoceIndex];
         assert(dayTarget, "Nessun bersaglio diurno");
         dayTarget.checked = true;
         click("day-target-review");
@@ -128,8 +169,58 @@
 
         click("elimination-continue");
         await nextFrame();
+        assert(app.textContent.includes("ultima parola"), "Potere del Portavoce assente");
+        const bonusTarget = app.querySelector('input[name="portavoce-target"]');
+        assert(bonusTarget, "Nessun destinatario per il voto doppio");
+        bonusTarget.checked = true;
+        window.__BLACKOUT_TEST_SPEECH__.failNext = true;
+        click("portavoce-designate");
+        await delay(60);
+        assert(
+          app.textContent.includes("ultima parola"),
+          "Il fallimento del preflight ha perso lo stato del Portavoce"
+        );
+        assert(
+          app.querySelector(".inline-error")?.textContent.includes("non ha risposto"),
+          "Errore del preflight non mostrato"
+        );
+        click("portavoce-designate");
+        await delay(60);
         assert(app.textContent.includes("La luce si spegne"), "Notte non iniziata");
 
+        window.__BLACKOUT_TEST_SPEECH__.failNext = true;
+        click("night-next");
+        await delay(60);
+        const privacyCover = document.getElementById("privacy-cover");
+        const privacyButton = privacyCover.querySelector("button");
+        assert(!privacyCover.hidden, "Cover non mostrata dopo errore della voce");
+        assert(
+          privacyCover.textContent.includes("Tutti aprano gli occhi"),
+          "Istruzione pubblica di recupero assente"
+        );
+        privacyButton.click();
+        assert(!privacyCover.hidden, "La cover ha rivelato subito la schermata segreta");
+        assert(privacyButton.disabled, "Retry della voce non bloccato");
+        window.dispatchEvent(new Event("blur"));
+        assert(
+          !privacyButton.disabled,
+          "Perdita di focus durante il retry ha bloccato la cover"
+        );
+        window.dispatchEvent(new Event("focus"));
+        privacyButton.click();
+        await delay(60);
+        assert(privacyCover.hidden, "Cover non rimossa dopo il retry riuscito");
+        const retryTexts = window.__BLACKOUT_TEST_SPEECH__.spokenTexts.slice(-2);
+        assert(
+          retryTexts[0]?.includes("Tutti chiudano gli occhi"),
+          "Reset collettivo degli occhi assente"
+        );
+        assert(
+          retryTexts[1]?.includes("Sabotatori, aprite gli occhi"),
+          "Chiamata del ruolo non ripetuta dopo il reset"
+        );
+
+        let sawGuastatoreHandoff = false;
         for (let guard = 0; guard < 20 && !app.textContent.includes("Alba del Giorno"); guard += 1) {
           if (app.querySelector('[data-action="night-next"]')) {
             click("night-next");
@@ -149,6 +240,9 @@
           } else if (app.querySelector('[data-action="resolve-night"]')) {
             click("resolve-night");
           } else if (app.querySelector(".handoff-timer")) {
+            if (app.textContent.includes("Solo il Guastatore resta sveglio")) {
+              sawGuastatoreHandoff = true;
+            }
             await delay(3000);
           } else {
             throw new Error(`Flusso notturno bloccato: ${app.textContent.slice(0, 120)}`);
@@ -156,12 +250,13 @@
           await nextFrame();
         }
 
+        assert(sawGuastatoreHandoff, "Passaggio pubblico al Guastatore assente");
         assert(app.textContent.includes("Alba del Giorno 2"), "Alba non raggiunta");
         click("dawn-continue");
         await nextFrame();
         assert(app.textContent.includes("Giorno 2"), "Giorno 2 non raggiunto");
 
-        localStorage.removeItem("blackout-al-faro:partita:v2");
+        localStorage.removeItem(window.__BLACKOUT_STORAGE_KEY__);
         result.value = "PASS";
         result.textContent = "PASS";
         document.documentElement.dataset.testStatus = "pass";

@@ -9,8 +9,8 @@ modalità di supporto alle sole carte fisiche.
 
 ## Avvio
 
-Il progetto usa HTML, CSS e JavaScript vanilla: non richiede dipendenze né una
-procedura di build.
+Il client del gioco usa HTML, CSS e JavaScript vanilla e può essere avviato
+senza compilazione.
 
 Si può aprire direttamente `index.html`, oppure servire la cartella con un
 server statico:
@@ -24,6 +24,17 @@ Poi aprire `http://localhost:8000`.
 Il server locale è consigliato su mobile per un comportamento più uniforme
 della sintesi vocale. L'app non carica font, audio, analytics o altre risorse da
 servizi esterni.
+
+Per la distribuzione su Sites è presente un sottile wrapper Vinext, che copia il
+client invariato nel pacchetto pubblico:
+
+```bash
+npm ci
+npm run build
+npm start
+```
+
+La build richiede Node.js 22 o successivo.
 
 ## Cosa gestisce l'app
 
@@ -144,8 +155,11 @@ giocatore eliminato dal voto.
 
 1. Tutti chiudono gli occhi.
 2. I Sabotatori aprono gli occhi e concordano **insieme un solo bersaglio**.
-3. Se presente, il Guastatore decide se provocare l'interferenza.
-4. I Sabotatori chiudono gli occhi; il bersaglio non può più cambiare.
+3. Se è presente il Guastatore, una schermata neutra e la voce danno agli altri
+   Sabotatori il tempo di chiudere gli occhi; solo dopo compare la sua scelta
+   segreta sull'interferenza.
+4. Il Guastatore chiude gli occhi; se non era presente, li chiude l'intera
+   squadra. Il bersaglio non può più cambiare.
 5. Il Tecnico decide se intervenire senza conoscere il bersaglio.
 6. Sentinella, Cartografa e Vedetta vengono chiamate separatamente, se presenti
    e vive.
@@ -210,6 +224,14 @@ stato scelto Muto: con tutti gli occhi chiusi, la regia autonoma non potrebbe
 altrimenti chiamare il ruolo corretto. Al ritorno del giorno viene ripristinata
 la preferenza Muto.
 
+Prima della prima notte l'app verifica che il browser completi davvero una frase
+di prova. Se la sintesi vocale manca o non risponde, la notte non parte. Se si
+interrompe in seguito, la regia blocca l'avanzamento, copre le informazioni
+private e segnala con tre toni di aprire gli occhi e ripetere la chiamata. Anche
+durante il nuovo annuncio lo schermo resta coperto: la voce ordina prima a tutti
+di richiudere gli occhi, poi richiama il solo ruolo attivo. Lo schermo si scopre
+soltanto quando la chiamata è terminata.
+
 Con un lettore di schermo sono consigliate le cuffie, perché il software
 assistivo può leggere il testo privato. Su telefono è consigliato attivare
 “Non disturbare”.
@@ -241,7 +263,8 @@ Senza Node.js, gli stessi test si possono eseguire aprendo
 `tests/game-engine-browser.html`.
 
 `tests/browser-smoke.html` percorre inoltre nel browser un'intera sequenza:
-setup, otto assegnazioni, Giorno 1, eliminazione, notte, alba e Giorno 2.
+setup, otto assegnazioni, Giorno 1, eliminazione, notte, alba e Giorno 2. Usa una
+chiave di salvataggio isolata e non tocca eventuali partite reali.
 
 ## Struttura
 
@@ -251,6 +274,10 @@ setup, otto assegnazioni, Giorno 1, eliminazione, notte, alba e Giorno 2.
 ├── styles.css                 # interfaccia mobile-first
 ├── game-engine.js             # regole pure e macchina di risoluzione
 ├── app.js                     # stato, schermate, privacy, voce e atmosfera
+├── package.json               # build Vinext per Sites
+├── package-lock.json          # dipendenze riproducibili
+├── pages/index.jsx            # ingresso e redirect al client statico
+├── scripts/prepare-public.mjs # prepara solo i file necessari alla demo
 ├── .openai/hosting.json       # collegamento alla demo privata
 ├── tests/
 │   ├── game-engine.test.js    # test del motore

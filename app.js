@@ -7,7 +7,8 @@
     throw new Error("BlackoutEngine non caricato. Verifica l'ordine degli script.");
   }
 
-  const STORAGE_KEY = "blackout-al-faro:partita:v2";
+  const STORAGE_KEY =
+    window.__BLACKOUT_STORAGE_KEY__ || "blackout-al-faro:partita:v2";
   const STATE_VERSION = 2;
   const HOLD_DURATION = 720;
   const HANDOFF_DURATION = 2800;
@@ -132,6 +133,8 @@
   let privacyReturnFocus = null;
   let handoffTimer = null;
   let narrationInterrupted = false;
+  let privacyCoverMode = "privacy";
+  let nightStartPending = false;
 
   class AudioDirector {
     constructor() {
@@ -144,6 +147,7 @@
       this.ambienceEnabled = true;
       this.started = false;
       this.activeSpeech = null;
+      this.voiceVerified = false;
     }
 
     setMode(mode) {
@@ -161,7 +165,6 @@
 
     async enable() {
       this.started = true;
-      if (!this.ambienceEnabled) return;
       try {
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         if (!AudioContext) return;
@@ -214,45 +217,101 @@
       oscillator.stop(now + 1.9);
     }
 
+    warning() {
+      if (!this.context) return;
+      const now = this.context.currentTime;
+      [0, 0.24, 0.48].forEach((offset) => {
+        const oscillator = this.context.createOscillator();
+        const gain = this.context.createGain();
+        oscillator.type = "square";
+        oscillator.frequency.value = 190;
+        gain.gain.setValueAtTime(0.0001, now + offset);
+        gain.gain.exponentialRampToValueAtTime(0.055, now + offset + 0.015);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + offset + 0.16);
+        oscillator.connect(gain).connect(this.context.destination);
+        oscillator.start(now + offset);
+        oscillator.stop(now + offset + 0.18);
+      });
+    }
+
+    isVoiceAvailable() {
+      return (
+        this.voiceEnabled &&
+        "speechSynthesis" in window &&
+        "SpeechSynthesisUtterance" in window
+      );
+    }
+
     speak(text, remember = true, onComplete = null) {
       const complete = typeof onComplete === "function" ? onComplete : () => {};
       if (!text) {
-        complete();
+        complete("empty");
         return false;
       }
       if (remember) this.lastText = text;
-      if (!this.voiceEnabled || !("speechSynthesis" in window)) {
-        complete();
+      if (!this.isVoiceAvailable()) {
+        this.voiceVerified = false;
+        complete("unavailable");
         return false;
       }
       this.cancelSpeech();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = "it-IT";
-      utterance.rate = 0.94;
-      utterance.pitch = 0.92;
-      const voices = window.speechSynthesis.getVoices();
-      const italian = voices.find((voice) => voice.lang && voice.lang.toLowerCase().startsWith("it"));
-      if (italian) utterance.voice = italian;
+      let utterance;
+      try {
+        utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = "it-IT";
+        utterance.rate = 0.94;
+        utterance.pitch = 0.92;
+        const voices = window.speechSynthesis.getVoices();
+        const italian = voices.find(
+          (voice) => voice.lang && voice.lang.toLowerCase().startsWith("it")
+        );
+        if (italian) utterance.voice = italian;
+      } catch (_error) {
+        this.voiceVerified = false;
+        complete("error");
+        return false;
+      }
       this.duck(true);
       let completed = false;
-      const speech = { utterance, cancelled: false };
+      const speech = { utterance, cancelled: false, watchdog: null };
       this.activeSpeech = speech;
-      const finish = () => {
+      const finish = (status) => {
         if (completed) return;
         completed = true;
-        if (this.activeSpeech === speech) this.activeSpeech = null;
-        this.duck(false);
-        if (!speech.cancelled) complete();
+        if (speech.watchdog) window.clearTimeout(speech.watchdog);
+        const ownsChannel = this.activeSpeech === speech;
+        if (ownsChannel) this.activeSpeech = null;
+        if (ownsChannel || !this.activeSpeech) this.duck(false);
+        if (!speech.cancelled) {
+          this.voiceVerified = status === "ended";
+          complete(status);
+        }
       };
-      utterance.onend = finish;
-      utterance.onerror = finish;
+      utterance.onend = () => finish("ended");
+      utterance.onerror = () => finish("error");
+      const watchdogDuration = Math.min(
+        30000,
+        Math.max(6000, text.length * 100)
+      );
+      speech.watchdog = window.setTimeout(() => {
+        finish("timeout");
+        window.speechSynthesis.cancel();
+      }, watchdogDuration);
       try {
         window.speechSynthesis.speak(utterance);
         return true;
       } catch (_error) {
-        finish();
+        finish("error");
         return false;
       }
+    }
+
+    verifyVoice(onComplete) {
+      return this.speak(
+        "Voce narrante pronta. Preparatevi per la notte.",
+        false,
+        onComplete
+      );
     }
 
     repeat(onComplete = null) {
@@ -276,12 +335,14 @@
       this.ambienceGain = null;
       this.noiseSource = null;
       this.started = false;
+      this.voiceVerified = false;
     }
 
     cancelSpeech() {
       const speech = this.activeSpeech;
       if (speech) {
         speech.cancelled = true;
+        if (speech.watchdog) window.clearTimeout(speech.watchdog);
         this.activeSpeech = null;
       }
       if ("speechSynthesis" in window) window.speechSynthesis.cancel();
@@ -1037,6 +1098,7 @@
     if (!step) return "";
     if (step.type === "close") return renderNightClose();
     if (step.type === "saboteurs") return renderSaboteurStep();
+    if (step.type === "guastatore-handoff") return renderGuastatoreHandoff();
     if (step.type === "guastatore") return renderBinaryPowerStep("guastatore");
     if (step.type === "saboteurs-sleep") return renderSaboteursSleep();
     if (step.type === "role-sleep") return renderRoleSleep(step.roleId);
@@ -1068,6 +1130,7 @@
     if (reviewPlayer) {
       return secretShell({
         roleId: "sabotatore",
+        audience: "Solo la squadra dei Sabotatori deve avere gli occhi aperti",
         title: `Bersaglio: ${reviewPlayer.name}`,
         intro: "La scelta è unica e condivisa. Tutti i Sabotatori devono essere d'accordo.",
         body: `<div class="confirmation-mark confirmation-mark--night" aria-hidden="true">✓</div>`,
@@ -1081,10 +1144,26 @@
     const targets = alivePlayers().filter((player) => factionOf(player) !== "sabotatori");
     return secretShell({
       roleId: "sabotatore",
+      audience: "Solo la squadra dei Sabotatori deve avere gli occhi aperti",
       title: "Scegliete un solo bersaglio",
       intro: "Non state votando separatamente: concordate prima, poi toccate lo stesso nome.",
       body: targetFieldset(targets, "night-sabotage-target"),
       actions: `<button class="button button--light button--block" data-action="sab-target-review">Rivedi il bersaglio</button>`
+    });
+  }
+
+  function renderGuastatoreHandoff() {
+    return shell({
+      eyebrow: `Notte ${state.day}`,
+      title: "Solo il Guastatore resta sveglio",
+      intro: "Gli altri Sabotatori chiudano gli occhi e allontanino le mani. La sua scelta deve restare segreta anche alla squadra.",
+      body: `
+        <div class="night-symbol night-symbol--closed" aria-hidden="true"><span></span></div>
+        <div class="handoff-timer" aria-label="Attendi mentre gli altri Sabotatori chiudono gli occhi">
+          <span aria-hidden="true"></span>
+          <strong>Gli altri Sabotatori chiudano gli occhi</strong>
+        </div>
+      `
     });
   }
 
@@ -1117,13 +1196,17 @@
   }
 
   function renderSaboteursSleep() {
+    const guastatoreActed = state.night.steps.some(
+      (step) => step.type === "guastatore"
+    );
+    const audience = guastatoreActed ? "Guastatore" : "Sabotatori";
     return shell({
       eyebrow: `Notte ${state.day}`,
-      title: "Sabotatori, chiudete gli occhi",
+      title: `${audience}, ${guastatoreActed ? "chiudi" : "chiudete"} gli occhi`,
       intro: "Il bersaglio è definitivo. La regia continuerà automaticamente tra pochi istanti.",
       body: `
         <div class="night-symbol night-symbol--closed" aria-hidden="true"><span></span></div>
-        <div class="handoff-timer" aria-label="Attendi mentre i Sabotatori chiudono gli occhi">
+        <div class="handoff-timer" aria-label="Attendi mentre ${audience} ${guastatoreActed ? "chiude" : "chiudono"} gli occhi">
           <span aria-hidden="true"></span>
           <strong>Attendi e chiudi gli occhi</strong>
         </div>
@@ -1152,7 +1235,7 @@
     if (
       handoffTimer ||
       state.screen !== "night" ||
-      !["role-sleep", "saboteurs-sleep"].includes(stepType) ||
+      !["guastatore-handoff", "role-sleep", "saboteurs-sleep"].includes(stepType) ||
       document.hidden
     ) {
       return;
@@ -1233,13 +1316,13 @@
     });
   }
 
-  function secretShell({ roleId, title, intro, body, actions }) {
+  function secretShell({ roleId, audience, title, intro, body, actions }) {
     return shell({
       eyebrow: `Notte ${state.day} · ${roleMeta(roleId).name}`,
       title,
       intro,
       body: `
-        <div class="secret-banner secret-banner--night">Solo ${escapeHtml(roleMeta(roleId).name)} deve avere gli occhi aperti</div>
+        <div class="secret-banner secret-banner--night">${escapeHtml(audience || `Solo ${roleMeta(roleId).name} deve avere gli occhi aperti`)}</div>
         ${body}
       `,
       actions
@@ -1314,6 +1397,10 @@
   function renderPortavoce() {
     const eliminated = playerById(state.pendingPortavoce?.playerId);
     const targets = alivePlayers();
+    const designatedId =
+      state.doubleVote?.sourcePlayerId === state.pendingPortavoce?.playerId
+        ? state.doubleVote.designatedPlayerId
+        : null;
     return shell({
       eyebrow: "Potere del Portavoce",
       title: `${eliminated?.name || "Il Portavoce"} ha l'ultima parola`,
@@ -1325,7 +1412,7 @@
             <legend>Chi avrà il voto doppio nella prossima votazione?</legend>
             ${targets.map((player) => `
               <label class="target-option">
-                <input type="radio" name="portavoce-target" value="${escapeHtml(player.id)}" />
+                <input type="radio" name="portavoce-target" value="${escapeHtml(player.id)}" ${player.id === designatedId ? "checked" : ""} />
                 <span class="player-token">${escapeHtml(initials(player.name))}</span>
                 <span>${escapeHtml(player.name)}</span>
                 <span class="target-option__mark" aria-hidden="true">✓</span>
@@ -1403,7 +1490,10 @@
     const hasAliveRole = (roleId) =>
       players.some((player) => player.alive && player.roleId === roleId);
     const steps = [{ type: "close" }, { type: "saboteurs" }];
-    if (hasAliveRole("guastatore")) steps.push({ type: "guastatore" });
+    if (hasAliveRole("guastatore")) {
+      steps.push({ type: "guastatore-handoff" });
+      steps.push({ type: "guastatore" });
+    }
     steps.push({ type: "saboteurs-sleep" });
     ["tecnico", "sentinella", "cartografa", "vedetta"].forEach((roleId) => {
       if (hasAliveRole(roleId)) {
@@ -1427,13 +1517,38 @@
   }
 
   function goToNight() {
+    if (nightStartPending) return;
     if (state.setup.audioMode === "muted") {
       state.audioWasForced = true;
       audio.setMode("voice");
-      audio.enable();
     } else {
       state.audioWasForced = false;
     }
+    audio.enable();
+    if (audio.voiceVerified && audio.isVoiceAvailable()) {
+      enterNight();
+      return;
+    }
+    nightStartPending = true;
+    showInlineError("Controllo della voce narrante in corso…");
+    audio.verifyVoice((status) => {
+      if (!nightStartPending) return;
+      nightStartPending = false;
+      if (status !== "ended") {
+        state.audioWasForced = false;
+        audio.setMode(state.setup.audioMode);
+        showInlineError(
+          "La voce narrante non ha risposto. Controlla volume e sintesi vocale, oppure usa un browser compatibile, poi riprova."
+        );
+        return;
+      }
+      enterNight();
+    });
+  }
+
+  function enterNight() {
+    state.pendingPortavoce = null;
+    state.afterPortavoce = null;
     state.phase = "night";
     state.screen = "night";
     state.night = {
@@ -1583,6 +1698,8 @@
   function finishAfterElimination(source) {
     const win = normalizeWin(Engine.checkWin(state.players));
     if (win.ended) {
+      state.pendingPortavoce = null;
+      state.afterPortavoce = null;
       state.winner = win;
       state.screen = "winner";
       state.phase = "ended";
@@ -1593,6 +1710,8 @@
     if (source === "day") {
       goToNight();
     } else {
+      state.pendingPortavoce = null;
+      state.afterPortavoce = null;
       state.day += 1;
       state.audioWasForced = false;
       state.phase = "day";
@@ -1630,6 +1749,11 @@
     const target = event.target.closest("[data-action]");
     if (!target) return;
     const action = target.dataset.action;
+    if (nightStartPending) {
+      event.preventDefault();
+      showInlineError("Attendi la conclusione del controllo della voce narrante.");
+      return;
+    }
 
     if (action === "new-game") {
       if (savedGame && !window.confirm("La partita salvata verrà sostituita. Vuoi continuare?")) return;
@@ -1794,30 +1918,34 @@
     if (action === "portavoce-designate") {
       const id = selectValue("portavoce-target");
       if (!id) return showInlineError("Il Portavoce deve designare un giocatore vivo.");
+      const pending = state.pendingPortavoce;
+      if (!pending) {
+        return showInlineError("La designazione non è più attiva. Riprendi la partita salvata.");
+      }
       const validation = Engine.validatePortavoceDesignation(
         state.players,
-        state.pendingPortavoce.playerId,
+        pending.playerId,
         id
       );
       if (!validation.valid) {
         return showInlineError(validation.errors[0]?.message || "Designazione non valida.");
       }
       state.doubleVote = Engine.createPortavoceBonus({
-        sourcePlayerId: state.pendingPortavoce.playerId,
+        sourcePlayerId: pending.playerId,
         designatedPlayerId: id,
         createdOnDay: state.day,
-        createdAfterPhase: state.pendingPortavoce.source
+        createdAfterPhase: pending.source
       });
-      const source = state.pendingPortavoce.source;
-      state.pendingPortavoce = null;
-      state.afterPortavoce = null;
+      const source = pending.source;
+      saveGame();
       finishAfterElimination(source);
       return;
     }
     if (action === "portavoce-skip") {
-      const source = state.pendingPortavoce.source;
-      state.pendingPortavoce = null;
-      state.afterPortavoce = null;
+      const source = state.pendingPortavoce?.source;
+      if (!source) {
+        return showInlineError("Il potere del Portavoce non è più attivo.");
+      }
       finishAfterElimination(source);
       return;
     }
@@ -1843,7 +1971,11 @@
       return;
     }
     if (action === "resume-private" || action === "resume-private-screen") {
-      hidePrivacyCover();
+      if (privacyCoverMode === "narration-failure") {
+        retryNarrationBehindCover();
+      } else if (privacyCoverMode !== "narration-retrying") {
+        hidePrivacyCover();
+      }
     }
   }
 
@@ -1992,8 +2124,10 @@
       alert = document.createElement("div");
       alert.className = "inline-error";
       alert.setAttribute("role", "alert");
+      alert.tabIndex = -1;
       const actionBar = app.querySelector(".action-bar");
-      (actionBar || app).before(alert);
+      if (actionBar) actionBar.before(alert);
+      else app.prepend(alert);
     }
     alert.textContent = message;
     alert.focus?.();
@@ -2026,11 +2160,65 @@
     if (state.screen === "assignment" && state.assignmentRevealed) return true;
     if (state.screen !== "night") return false;
     const type = currentNightStep()?.type;
-    return !["close", "saboteurs-sleep", "role-sleep", "resolve"].includes(type);
+    return ![
+      "close",
+      "guastatore-handoff",
+      "saboteurs-sleep",
+      "role-sleep",
+      "resolve"
+    ].includes(type);
   }
 
-  function showPrivacyCover() {
-    if (!privacyCover || privacyIsCovered) return;
+  function configurePrivacyCover(mode) {
+    if (!privacyCover) return;
+    const eyebrow = privacyCover.querySelector(".eyebrow");
+    const title = privacyCover.querySelector("h2");
+    const description = privacyCover.querySelector("p:not(.eyebrow)");
+    const button = privacyCover.querySelector("button");
+    const voiceFailure = mode === "narration-failure";
+    const voiceRetrying = mode === "narration-retrying";
+    if (eyebrow) {
+      eyebrow.textContent = voiceFailure
+        ? "Voce interrotta"
+        : voiceRetrying
+          ? "Chiamata in corso"
+          : "Schermata protetta";
+    }
+    if (title) {
+      title.textContent = voiceFailure
+        ? "Tutti aprano gli occhi"
+        : voiceRetrying
+          ? "Lo schermo resta protetto"
+          : "Il mare nasconde i suoi segreti";
+    }
+    if (description) {
+      description.textContent = voiceFailure
+        ? "La regia si è fermata prima di avanzare. Controlla il volume, poi ripeti la chiamata."
+        : voiceRetrying
+          ? "Ascoltate il reset: tutti richiudono gli occhi, poi soltanto il ruolo chiamato li riapre."
+          : "Passa il dispositivo alla persona chiamata prima di continuare.";
+    }
+    if (button) {
+      button.textContent = voiceFailure
+        ? "Ripeti la chiamata"
+        : voiceRetrying
+          ? "Chiamata in corso…"
+          : "Sono pronto";
+      button.disabled = voiceRetrying;
+    }
+  }
+
+  function showPrivacyCover(mode = "privacy") {
+    if (!privacyCover) return;
+    if (privacyIsCovered) {
+      if (mode === "narration-failure") {
+        privacyCoverMode = mode;
+        configurePrivacyCover(mode);
+      }
+      return;
+    }
+    privacyCoverMode = mode;
+    configurePrivacyCover(mode);
     privacyIsCovered = true;
     privacyReturnFocus = document.activeElement;
     const shellElement = document.querySelector(".app-shell");
@@ -2045,8 +2233,8 @@
     privacyCover.querySelector("button")?.focus();
   }
 
-  function hidePrivacyCover() {
-    if (!privacyCover) return;
+  function hidePrivacyCover(restartNarration = true) {
+    if (!privacyCover || !privacyIsCovered) return;
     privacyIsCovered = false;
     const shellElement = document.querySelector(".app-shell");
     if (shellElement) {
@@ -2061,8 +2249,12 @@
     else app.querySelector("h1")?.focus();
     privacyReturnFocus = null;
     narrationInterrupted = false;
-    lastNarrationKey = "";
-    startScreenNarration();
+    privacyCoverMode = "privacy";
+    configurePrivacyCover(privacyCoverMode);
+    if (restartNarration) {
+      lastNarrationKey = "";
+      startScreenNarration();
+    }
   }
 
   function protectSecrets() {
@@ -2120,8 +2312,11 @@
       close: "La luce si spegne su Port Leon. Tutti chiudano gli occhi.",
       sabotatori: "",
       saboteurs: "Sabotatori, aprite gli occhi. Concordate un unico bersaglio e confermatelo sullo schermo.",
-      guastatore: "Guastatore, decidi se provocare un'interferenza questa notte.",
-      "saboteurs-sleep": "Sabotatori, chiudete gli occhi. Il bersaglio è definitivo.",
+      "guastatore-handoff": "Sabotatori, tranne il Guastatore, chiudete gli occhi e allontanate le mani dal dispositivo. Guastatore, resta sveglio.",
+      guastatore: "Guastatore, decidi in segreto se provocare un'interferenza questa notte.",
+      "saboteurs-sleep": state.night.steps.some((candidate) => candidate.type === "guastatore")
+        ? "Guastatore, chiudi gli occhi. Il bersaglio è definitivo."
+        : "Sabotatori, chiudete gli occhi. Il bersaglio è definitivo.",
       tecnico: "Tecnico, apri gli occhi. Senza conoscere il bersaglio, decidi se intervenire.",
       sentinella: "Sentinella, apri gli occhi. Puoi usare il tuo potere oppure attendere.",
       cartografa: "Cartografa della Baia, apri gli occhi. Puoi usare il tuo potere oppure attendere.",
@@ -2146,7 +2341,9 @@
   function isNightHandoffScreen() {
     return (
       state.screen === "night" &&
-      ["role-sleep", "saboteurs-sleep"].includes(currentNightStep()?.type)
+      ["guastatore-handoff", "role-sleep", "saboteurs-sleep"].includes(
+        currentNightStep()?.type
+      )
     );
   }
 
@@ -2157,7 +2354,14 @@
     return {
       handoffScreen,
       releaseWinnerAudio,
-      complete() {
+      complete(status = "skipped") {
+        if (
+          state.screen === "night" &&
+          ["error", "timeout", "unavailable"].includes(status)
+        ) {
+          handleNarrationFailure();
+          return;
+        }
         if (handoffScreen) scheduleNightHandoff();
         if (releaseWinnerAudio) releaseForcedWinnerAudio();
       }
@@ -2167,20 +2371,74 @@
   function startScreenNarration() {
     const effects = narrationCompletion();
     const narrationStarted = narrateCurrentScreen(effects.complete);
-    if (!narrationStarted) effects.complete();
+    if (!narrationStarted) effects.complete("skipped");
     return narrationStarted;
   }
 
   function repeatScreenNarration() {
     const effects = narrationCompletion();
     if (effects.handoffScreen) clearNightHandoff();
-    const narrationStarted = audio.repeat(effects.complete);
-    if (!narrationStarted) effects.complete();
+    app.querySelector(".inline-error")?.remove();
+    let completionCalled = false;
+    const complete = (status) => {
+      completionCalled = true;
+      effects.complete(status);
+    };
+    const narrationStarted = audio.repeat(complete);
+    if (!narrationStarted && !completionCalled) effects.complete("unavailable");
+  }
+
+  function retryNarrationBehindCover() {
+    if (!privacyIsCovered || privacyCoverMode !== "narration-failure") return;
+    privacyCoverMode = "narration-retrying";
+    configurePrivacyCover(privacyCoverMode);
+    lastNarrationKey = "";
+    audio.speak(
+      "Tutti chiudano gli occhi. La chiamata del ruolo sta per essere ripetuta.",
+      false,
+      (resetStatus) => {
+        if (privacyCoverMode !== "narration-retrying") return;
+        if (resetStatus !== "ended") {
+          handleNarrationFailure();
+          return;
+        }
+        const effects = narrationCompletion();
+        let completionCalled = false;
+        const complete = (status) => {
+          if (completionCalled) return;
+          completionCalled = true;
+          effects.complete(status);
+          if (status === "ended") hidePrivacyCover(false);
+        };
+        const narrationStarted = narrateCurrentScreen(complete);
+        if (!narrationStarted && !completionCalled) complete("unavailable");
+      }
+    );
+  }
+
+  function handleNarrationFailure() {
+    clearNightHandoff();
+    narrationInterrupted = false;
+    audio.warning();
+    showPrivacyCover("narration-failure");
   }
 
   function pauseScreenNarration() {
     const timerPaused = clearNightHandoff();
     const speechPaused = audio.cancelSpeech();
+    if (privacyCoverMode === "narration-retrying") {
+      narrationInterrupted = false;
+      privacyCoverMode = "narration-failure";
+      configurePrivacyCover(privacyCoverMode);
+      return;
+    }
+    if (nightStartPending) {
+      nightStartPending = false;
+      state.audioWasForced = false;
+      audio.setMode(state.setup.audioMode);
+      showInlineError("Controllo della voce interrotto. Quando sei pronto, riprova.");
+      return;
+    }
     if (timerPaused || speechPaused) narrationInterrupted = true;
   }
 
@@ -2226,6 +2484,11 @@
 
   function wireGlobalControls() {
     document.getElementById("audio-mode")?.addEventListener("change", (event) => {
+      if (nightStartPending) {
+        event.target.value = effectiveAudioMode();
+        showInlineError("Attendi la conclusione del controllo della voce narrante.");
+        return;
+      }
       const previousMode = effectiveAudioMode();
       if (state.screen === "night" && event.target.value === "muted") {
         event.target.value = effectiveAudioMode();
@@ -2243,6 +2506,10 @@
       saveGame();
     });
     document.getElementById("audio-toggle")?.addEventListener("click", () => {
+      if (nightStartPending) {
+        showInlineError("Attendi la conclusione del controllo della voce narrante.");
+        return;
+      }
       const previousMode = effectiveAudioMode();
       if (state.screen === "night") {
         showInlineError("Durante la notte la voce deve restare attiva per chiamare i ruoli.");
@@ -2259,10 +2526,13 @@
       saveGame();
     });
     document.getElementById("audio-repeat")?.addEventListener("click", () => {
+      if (nightStartPending) {
+        showInlineError("Attendi la conclusione del controllo della voce narrante.");
+        return;
+      }
       audio.enable();
       repeatScreenNarration();
     });
-    privacyCover?.querySelector("button")?.addEventListener("click", hidePrivacyCover);
   }
 
   document.addEventListener("click", handleClick);
